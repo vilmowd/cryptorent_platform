@@ -22,11 +22,3 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 5. Copy project files
 COPY . .
-
-WORKDIR /backend
-
-# 4. & 5. (Keep your current copy/install logic)
-
-# 6. The Fixed Start Command
-# We use 8080 as the hardcoded port to avoid the $PORT headache
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
