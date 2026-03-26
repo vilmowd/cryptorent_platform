@@ -9,8 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv() 
 
 # --- 2. DATABASE & MODULE IMPORTS ---
-from app.database import engine, Base
-from app.api import auth, bots, dashboard, trades, webhooks
+from database import engine, Base
+from api import auth, bots, dashboard, trades, webhooks
 from core import billing 
 
 # Sync Database Tables
