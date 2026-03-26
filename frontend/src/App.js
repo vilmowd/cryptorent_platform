@@ -9,6 +9,7 @@ import SiteInfo from './components/SiteInfo.jsx';
 import './App.css';
 
 // --- CONFIGURATION ---
+//i need to commit this 
 // In Railway, add the variable: REACT_APP_API_URL
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
