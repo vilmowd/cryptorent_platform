@@ -1,0 +1,173 @@
+/* Container Layout */
+.analytics-container {
+  padding: 2rem;
+  background-color: #0d1117; /* Deep midnight blue */
+  color: #e6edf3;
+  min-height: 100vh;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.analytics-header h1 {
+  font-size: 1.8rem;
+  margin-top: 0.5rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid #30363d;
+  padding-bottom: 1rem;
+  color: #58a6ff; 
+  display: flex;
+  align-items: center;
+}
+
+/* The Grid Layout */
+.brain-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* Individual Cards */
+.logic-card, .stats-card, .history-card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.full-width {
+  grid-column: 1 / -1; /* Spans across all columns */
+}
+
+.logic-card h3, .stats-card h3, .history-card h3 {
+  margin-top: 0;
+  margin-bottom: 1.2rem;
+  font-size: 0.9rem;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Strategy Checks */
+.check {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  margin: 10px 0;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.85rem;
+  transition: all 0.3s ease;
+}
+
+.check.pass {
+  background: rgba(46, 160, 67, 0.1);
+  color: #3fb950;
+  border: 1px solid rgba(46, 160, 67, 0.2);
+}
+
+.check.fail {
+  background: rgba(248, 81, 73, 0.1);
+  color: #f85149;
+  border: 1px solid rgba(248, 81, 73, 0.2);
+}
+
+/* Live Metrics Styling */
+.stats-card p {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #21262d;
+  font-size: 0.95rem;
+}
+
+.stats-card p:last-child {
+  border-bottom: none;
+}
+
+.stats-card strong {
+  color: #79c0ff; 
+  font-family: 'Roboto Mono', monospace;
+}
+
+/* --- TRADE TABLE STYLING --- */
+.trade-table-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+}
+
+.trade-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.85rem;
+}
+
+.trade-table th {
+  position: sticky;
+  top: 0;
+  background: #21262d;
+  color: #8b949e;
+  text-align: left;
+  padding: 12px;
+  font-weight: 600;
+}
+
+.trade-table td {
+  padding: 12px;
+  border-bottom: 1px solid #21262d;
+}
+
+/* Row Color Coding */
+.trade-buy { color: #58a6ff; } /* Blue for Buy */
+.trade-win { color: #3fb950; background: rgba(63, 185, 80, 0.03); } /* Green for Win */
+.trade-loss { color: #f85149; background: rgba(248, 81, 73, 0.03); } /* Red for Loss */
+
+.pnl-cell {
+  font-weight: bold;
+}
+
+/* Interactive Elements */
+.back-btn {
+  background: transparent;
+  border: 1px solid #30363d;
+  color: #8b949e;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.back-btn:hover {
+  border-color: #58a6ff;
+  color: #58a6ff;
+  background: rgba(88, 166, 255, 0.1);
+}
+
+/* Heartbeat Animation */
+.status-live {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-color: #3fb950;
+  border-radius: 50%;
+  margin-right: 12px;
+  box-shadow: 0 0 8px rgba(63, 185, 80, 0.5);
+  animation: pulse 2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.2); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 600px) {
+  .analytics-container { padding: 1rem; }
+  .brain-grid { grid-template-columns: 1fr; }
+  .history-card { overflow-x: auto; }
+}

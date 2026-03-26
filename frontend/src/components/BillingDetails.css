@@ -1,0 +1,103 @@
+/* Billing Card Styling */
+.billing-card-container {
+  background: #0f172a; /* Slate 900 */
+  border: 1px solid #1e293b; /* Slate 800 */
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+  margin: 20px auto;
+  color: white;
+}
+
+.billing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.status-active {
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+}
+
+.status-inactive {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+}
+
+.billing-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.billing-stat-box {
+  background: #020617; /* Slate 950 */
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #1e293b;
+}
+
+.stat-label {
+  font-size: 0.65rem;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.stat-value.warning { color: #fb923c; }
+.stat-value.normal { color: #cbd5e1; }
+
+.billing-footer-info {
+  border-top: 1px solid #1e293b;
+  padding-top: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.billing-btn {
+  width: 100%;
+  padding: 0.85rem;
+  background: linear-gradient(to right, #2563eb, #4f46e5);
+  color: white;
+  font-weight: 700;
+  border: none;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+
+.billing-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.billing-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

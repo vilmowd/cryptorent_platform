@@ -1,0 +1,36 @@
+/* Container */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+/* Individual Cards */
+.summary-card {
+  background: #0f172a; /* Slate 900 */
+  border: 1px solid #1e293b; /* Slate 800 */
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.summary-label {
+  font-size: 10px;
+  color: #64748b; /* Slate 500 */
+  text-transform: uppercase;
+  font-weight: 800;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.summary-value {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+/* Specific Colors */
+.text-profit { color: #4ade80; } /* Green */
+.text-loss { color: #f87171; }   /* Red */
+.text-neutral { color: #60a5fa; } /* Blue */
+

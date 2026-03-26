@@ -1,0 +1,209 @@
+.trades-container {
+  margin-top: 2rem;
+  background-color: #0f172a; /* Slate 900 */
+  border: 1px solid #334155; /* Slate 700 */
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.trades-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #334155;
+  background-color: rgba(30, 41, 59, 0.5); /* Slate 800/50 */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.trades-title {
+  color: #ffffff;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.trades-subtitle {
+  color: #94a3b8;
+  font-size: 0.875rem;
+  margin: 0.25rem 0 0 0;
+}
+
+.refresh-btn {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+}
+
+.refresh-btn:hover {
+  background-color: #334155;
+  color: #ffffff;
+}
+
+.icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Table Styling */
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.trades-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.trades-table th {
+  background-color: #1e293b; /* Slate 800 */
+  color: #94a3b8;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1rem;
+  font-weight: 600;
+}
+
+.trades-table .fee-head {
+  color: #818cf8; /* Indigo 400 */
+}
+
+.trade-row {
+  border-bottom: 1px solid #1e293b;
+  transition: background-color 0.2s;
+}
+
+.trade-row:hover {
+  background-color: rgba(30, 41, 59, 0.3);
+}
+
+.trades-table td {
+  padding: 1rem;
+  color: #cbd5e1;
+  font-size: 0.875rem;
+}
+
+/* Badges and Cells */
+.action-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.action-badge.buy {
+  color: #60a5fa;
+  background-color: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.2);
+}
+
+.action-badge.sell {
+  color: #fb923c;
+  background-color: rgba(251, 146, 60, 0.1);
+  border-color: rgba(251, 146, 60, 0.2);
+}
+
+.mono { font-family: monospace; }
+.muted { color: #64748b; }
+
+.pnl-cell { font-weight: 700; }
+.pnl-cell.profit { color: #4ade80; }
+.pnl-cell.loss { color: #f87171; }
+
+.fee-cell {
+  color: #a5b4fc;
+  font-weight: 600;
+}
+
+.empty-state {
+  padding: 2.5rem;
+  text-align: center;
+  color: #64748b;
+  font-style: italic;
+}
+
+.trades-loading {
+  margin-top: 2rem;
+  padding: 2.5rem;
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 1rem;
+  text-align: center;
+  color: #64748b;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+
+/* New Centering Utilities */
+.trades-container.is-empty {
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Vertical center */
+  align-items: center;     /* Horizontal center */
+  min-height: 450px;       /* Gives it enough "room" to look centered */
+  height: 100%;            /* Fills parent */
+  border-style: dashed;    /* Looks better for an empty state */
+  background-color: rgba(15, 23, 42, 0.5); /* Slightly more transparent */
+}
+
+.middle-message {
+  text-align: center;
+  padding: 2rem;
+}
+
+.middle-message .pulse-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  display: block;
+  animation: pulse 2s infinite;
+}
+
+/* Make sure the parent height is respected */
+.trades-container {
+  /* Remove or adjust margin-top if it's pushing it down too far */
+  margin-top: 1rem; 
+  display: flex;
+  flex-direction: column;
+}
+
+
+/* Ensure the container can grow to fill the dashboard space */
+.trades-container.is-empty {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px; /* This matches the visual weight of the BotCard */
+  width: 100%;
+  background-color: #0f172a;
+  border: 1px dashed #334155;
+  border-radius: 1rem;
+  padding: 2rem;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.middle-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.pulse-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+  opacity: 0.5;
+}
