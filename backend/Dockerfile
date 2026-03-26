@@ -5,7 +5,6 @@ FROM python:3.12-slim
 # We put these at the top so Python behaves correctly from the start
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-WORKDIR /app
 
 # 3. Install system dependencies
 # We combine these to keep the image small
