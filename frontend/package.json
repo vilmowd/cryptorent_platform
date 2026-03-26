@@ -5,8 +5,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "serve -s dist -l $PORT",
-    "build": "vite build",
+    "start": "react-scripts start",
+    "build": "react-scripts build",
     "watch:css": "tailwindcss -i ./src/index.css -o ./src/output.css --watch",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
@@ -16,7 +16,6 @@
   "license": "ISC",
   "dependencies": {
     "clsx": "^2.1.1",
-    "serve": "^14.2.4",
     "lucide-react": "^0.577.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
