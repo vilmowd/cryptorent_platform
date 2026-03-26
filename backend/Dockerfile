@@ -4,8 +4,7 @@ FROM python:3.12-slim
 # 2. Basic environment setup
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-# This ensures imports like 'from database' work from inside the 'app' folder
-ENV PYTHONPATH=/backend
+ENV PYTHONPATH=/backend:/backend/app
 
 # 3. Set the working directory to the root of your project
 WORKDIR /backend
@@ -25,5 +24,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # 7. Start the application
-# We use 8080 to keep it simple and avoid the $PORT variable.
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
