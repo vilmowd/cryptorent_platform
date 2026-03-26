@@ -23,7 +23,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 5. Copy project files
 COPY . .
 
-# 6. The "Safety First" Start Command
-# We use 'app.main:app' assuming your structure is: /backend/app/main.py
-# If main.py is in the root of the folder, change this to 'main:app'
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+WORKDIR /backend
+
+# 4. & 5. (Keep your current copy/install logic)
+
+# 6. The Fixed Start Command
+# We use 8080 as the hardcoded port to avoid the $PORT headache
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
