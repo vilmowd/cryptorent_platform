@@ -24,4 +24,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # 7. Start the application
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0"]
+# We use 'sh -c' so the shell can expand the ${PORT} variable from Railway
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
