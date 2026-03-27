@@ -34,7 +34,7 @@ app.add_middleware(
 
 # --- 5. ROUTER REGISTRATION ---
 # Note: Ensure these paths match your folder structure (backend/app/api/...)
-from app.api import auth, bots, dashboard, trades, webhooks
+from api import auth, bots, dashboard, trades, webhooks
 from core import billing 
 
 app.include_router(auth.router, prefix="/auth")

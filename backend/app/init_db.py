@@ -1,5 +1,5 @@
 # backend/init_db.py
-from app.database import engine, Base
+from database import engine, Base
 
 # Import your models here so they are registered with Base
 # This solves the "unused import" issue in main.py

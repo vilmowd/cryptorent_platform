@@ -5,7 +5,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-  "start": "WDS_SOCKET_PORT=0 PORT=3000 react-scripts start",
+  "start": "react-scripts start",
   "build": "react-scripts build",
   "watch:css": "tailwindcss -i ./src/index.css -o ./src/output.css --watch",
   "test": "react-scripts test",
