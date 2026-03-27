@@ -40,7 +40,7 @@ const BotAnalytics = ({ botId, onBack }) => {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 5000); 
+    const interval = setInterval(fetchData, 15000); // 15 seconds is plenty for a 5m strategy
     return () => clearInterval(interval);
   }, [fetchData]);
 
@@ -75,7 +75,7 @@ const BotAnalytics = ({ botId, onBack }) => {
           <h3>Calculated Indicators</h3>
           {/* Using fallbacks since these aren't in your JSON yet */}
           <p style={{color: '#94a3b8'}}>Price: <strong style={{color: '#f8fafc'}}>
-            {data.current_price ? `$${data.current_price.toLocaleString()}` : 'FETCHING...'}
+            {typeof data.current_price === 'number' ? `$${data.current_price.toLocaleString()}` : 'FETCHING...'}
           </strong></p>
           <p style={{color: '#94a3b8'}}>Daily PnL: <strong style={{color: data.daily_pnl?.includes('-') ? '#f87171' : '#4ade80'}}>
             {data.daily_pnl || '$0.00'}
