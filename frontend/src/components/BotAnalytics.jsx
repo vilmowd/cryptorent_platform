@@ -6,10 +6,12 @@ const BotAnalytics = ({ botId, onBack }) => {
   const [trades, setTrades] = useState([]); 
   const [error, setError] = useState(null);
 
-  // --- CONFIGURATION ---
   const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
   const fetchData = useCallback(async () => {
+    // CRITICAL: Don't fetch if botId is missing
+    if (!botId) return;
+
     try {
       const token = localStorage.getItem('token');
       const headers = { 
@@ -17,7 +19,6 @@ const BotAnalytics = ({ botId, onBack }) => {
         'Content-Type': 'application/json' 
       };
       
-      // UPDATED: Using dynamic API_BASE_URL for live polling
       const [resStats, resTrades] = await Promise.all([
         fetch(`${API_BASE_URL}/bots/${botId}/stats`, { headers }), 
         fetch(`${API_BASE_URL}/bots/${botId}/trades`, { headers })
@@ -26,6 +27,8 @@ const BotAnalytics = ({ botId, onBack }) => {
       if (resStats.ok) {
         const statsData = await resStats.json();
         setData(statsData);
+      } else {
+        setError("Could not retrieve engine stats.");
       }
       
       if (resTrades.ok) {
@@ -33,24 +36,27 @@ const BotAnalytics = ({ botId, onBack }) => {
         setTrades(tradesData);
       }
       
-      setError(null);
     } catch (err) {
       console.error("Polling Error:", err);
-      setError("Sync Interrupted...");
+      setError("Terminal Connection Lost...");
     }
   }, [botId, API_BASE_URL]);
 
   useEffect(() => {
     fetchData();
-    
-    // Poll every 5 seconds for live RSI/Price updates
     const interval = setInterval(fetchData, 5000); 
-    
-    // Cleanup: Stops polling when the user exits the analytics view
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  if (!data && !error) return <div className="loading-text">Accessing Secure Ledger...</div>;
+  // Handle Loading State
+  if (!data && !error) {
+    return (
+      <div className="analytics-container">
+        <div className="loading-text">DECRYPTING ENGINE DATA...</div>
+      </div>
+    );
+  }
+
   if (error) return <div className="status-alert error" style={{margin: '20px'}}>{error}</div>;
 
   return (
@@ -63,6 +69,7 @@ const BotAnalytics = ({ botId, onBack }) => {
       <div className="brain-grid">
         <div className="logic-card">
           <h3>Live Strategy Logic</h3>
+          {/* Use Optional Chaining (?.) to prevent crashes */}
           <div className={`check ${data.decision_factors?.is_trend_ok ? 'pass' : 'fail'}`}>
             {data.decision_factors?.is_trend_ok ? 'TREND CONFIRMED' : 'WAITING FOR TREND'}
           </div>
@@ -73,8 +80,8 @@ const BotAnalytics = ({ botId, onBack }) => {
 
         <div className="stats-card">
           <h3>Calculated Indicators</h3>
-          <p style={{color: '#94a3b8'}}>Price: <strong style={{color: '#f8fafc'}}>${data.current_price?.toLocaleString()}</strong></p>
-          <p style={{color: '#94a3b8'}}>RSI: <strong style={{color: '#f8fafc'}}>{data.rsi_value}</strong></p>
+          <p style={{color: '#94a3b8'}}>Price: <strong style={{color: '#f8fafc'}}>${data.current_price?.toLocaleString() || '---'}</strong></p>
+          <p style={{color: '#94a3b8'}}>RSI: <strong style={{color: '#f8fafc'}}>{data.rsi_value || 'Calculating...'}</strong></p>
         </div>
 
         <div className="history-card full-width">
@@ -90,11 +97,11 @@ const BotAnalytics = ({ botId, onBack }) => {
                 </tr>
               </thead>
               <tbody>
-                {trades.length > 0 ? trades.map((trade, i) => (
+                {trades && trades.length > 0 ? trades.map((trade, i) => (
                   <tr key={i} className={trade.side?.toLowerCase().includes('sell') ? 'trade-win' : 'trade-buy'}>
-                    <td>{new Date(trade.timestamp).toLocaleTimeString()}</td>
+                    <td>{trade.timestamp ? new Date(trade.timestamp).toLocaleTimeString() : '---'}</td>
                     <td style={{fontWeight: 'bold'}}>{trade.side}</td>
-                    <td>${trade.price?.toLocaleString()}</td>
+                    <td>${trade.price?.toLocaleString() || '0.00'}</td>
                     <td>{trade.pnl ? `${trade.pnl}%` : '---'}</td>
                   </tr>
                 )) : (
