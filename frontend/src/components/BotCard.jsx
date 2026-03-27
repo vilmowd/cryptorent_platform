@@ -7,10 +7,8 @@ const BotCard = ({ botId, onNavigate }) => {
   const [isStalled, setIsStalled] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   
-  // --- CONFIGURATION ---
   const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
-  // Telegram States
   const [showTelegram, setShowTelegram] = useState(false);
   const [telegramData, setTelegramData] = useState({ bot_token: '', chat_id: '' });
   const [tgStatus, setTgStatus] = useState({ loading: false, valid: false, error: null });
@@ -31,7 +29,6 @@ const BotCard = ({ botId, onNavigate }) => {
 
   const fetchStats = useCallback(async () => {
     try {
-      // UPDATED: Dynamic URL
       const response = await fetch(`${API_BASE_URL}/bots/${botId}/stats`, {
         method: 'GET',
         headers: getAuthHeaders()
@@ -47,7 +44,6 @@ const BotCard = ({ botId, onNavigate }) => {
             max_trade_price: data.max_trade_price || 0,
             max_daily_loss: data.max_daily_loss || 0
           });
-          // Sync telegram data from DB
           setTelegramData({
             bot_token: data.bot_token || '',
             chat_id: data.chat_id || ''
@@ -75,13 +71,11 @@ const BotCard = ({ botId, onNavigate }) => {
     return () => clearInterval(interval);
   }, [fetchStats]);
 
-  // Validation Logic for Telegram (Direct to Telegram API)
   const validateTelegram = async () => {
     setTgStatus({ loading: true, valid: false, error: null });
     try {
       const res = await fetch(`https://api.telegram.org/bot${telegramData.bot_token}/getChat?chat_id=${telegramData.chat_id}`);
       const data = await res.json();
-      
       if (data.ok) {
         setTgStatus({ loading: false, valid: true, error: null });
       } else {
@@ -94,14 +88,10 @@ const BotCard = ({ botId, onNavigate }) => {
 
   const saveSettings = async () => {
     try {
-      // UPDATED: Dynamic URL
       await fetch(`${API_BASE_URL}/bots/${botId}/update-settings`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
-        body: JSON.stringify({
-          ...thresholds,
-          ...telegramData
-        })
+        body: JSON.stringify({ ...thresholds, ...telegramData })
       });
       setIsEditing(false);
       await fetchStats();
@@ -112,7 +102,6 @@ const BotCard = ({ botId, onNavigate }) => {
 
   const toggleBot = async () => {
     try {
-      // UPDATED: Dynamic URL
       const response = await fetch(`${API_BASE_URL}/bots/${botId}/toggle`, { 
         method: 'POST',
         headers: getAuthHeaders()
@@ -141,6 +130,18 @@ const BotCard = ({ botId, onNavigate }) => {
       </div>
 
       <div className="stats-list">
+        {/* CONDITIONALLY RENDER ANALYTICS: Only shows when bot is running */}
+        {bot.is_running && (
+          <button 
+            className="analytics-trigger-btn animate-pulse-slow"
+            onClick={() => onNavigate('analytics', botId)}
+          >
+            <span className="icon">⚡</span> 
+            <span>OPEN ANALYTICS TERMINAL</span>
+            <span className="arrow">→</span>
+          </button>
+        )}
+
         <div className="safety-grid">
           <div className="safety-header">
             <span className="label text-[10px] uppercase font-bold">Safety & Alerts</span>
@@ -152,7 +153,12 @@ const BotCard = ({ botId, onNavigate }) => {
           <div className="safety-inputs">
             <div className="input-group">
               <label>Min $</label>
-              <input type="number" disabled={!isEditing} value={thresholds.min_trade_price} onChange={(e) => setThresholds({...thresholds, min_trade_price: e.target.value})} />
+              <input 
+                type="number" 
+                disabled={!isEditing} 
+                value={thresholds.min_trade_price} 
+                onChange={(e) => setThresholds({...thresholds, min_trade_price: e.target.value})} 
+              />
             </div>
             {/* ... other threshold inputs ... */}
           </div>
