@@ -7,6 +7,10 @@ const BotCard = ({ botId, onNavigate }) => {
   const [isStalled, setIsStalled] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   
+  // Toast State
+  const [showToast, setShowToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
+
   const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
   const [showTelegram, setShowTelegram] = useState(false);
@@ -27,6 +31,12 @@ const BotCard = ({ botId, onNavigate }) => {
     };
   };
 
+  const triggerToast = (msg) => {
+    setToastMsg(msg);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
   const fetchStats = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/bots/${botId}/stats`, {
@@ -38,7 +48,6 @@ const BotCard = ({ botId, onNavigate }) => {
         const data = await response.json();
         setBot(data);
         
-        // Only sync form state if NOT editing to prevent overwriting user input
         if (!isEditing) {
           setThresholds({
             min_trade_price: data.min_trade_price || 0,
@@ -72,7 +81,6 @@ const BotCard = ({ botId, onNavigate }) => {
     return () => clearInterval(interval);
   }, [fetchStats]);
 
-  // Validate credentials via Telegram API directly
   const validateTelegram = async () => {
     setTgStatus({ loading: true, valid: false, error: null });
     try {
@@ -80,6 +88,7 @@ const BotCard = ({ botId, onNavigate }) => {
       const data = await res.json();
       if (data.ok) {
         setTgStatus({ loading: false, valid: true, error: null });
+        triggerToast("Telegram Connection Verified!");
       } else {
         setTgStatus({ loading: false, valid: false, error: data.description });
       }
@@ -90,7 +99,6 @@ const BotCard = ({ botId, onNavigate }) => {
 
   const saveSettings = async () => {
     try {
-      // Explicitly pick only the fields the PATCH endpoint expects
       const payload = {
         min_trade_price: Number(thresholds.min_trade_price),
         max_trade_price: Number(thresholds.max_trade_price),
@@ -107,11 +115,13 @@ const BotCard = ({ botId, onNavigate }) => {
 
       if (res.ok) {
         setIsEditing(false);
-        setTgStatus({ loading: false, valid: false, error: null }); // Reset status after save
+        setTgStatus({ loading: false, valid: false, error: null });
+        triggerToast("Settings Saved Successfully");
         fetchStats();
       }
     } catch (error) {
       console.error("Update failed:", error);
+      triggerToast("Failed to save settings");
     }
   };
 
@@ -122,6 +132,9 @@ const BotCard = ({ botId, onNavigate }) => {
         headers: getAuthHeaders()
       });
       if (response.status === 402) return onNavigate('/billing');
+      
+      const data = await response.json();
+      triggerToast(data.is_running ? "Engine Initialized" : "Engine Shutdown");
       fetchStats(); 
     } catch (error) {
       console.error("Toggle action failed:", error);
@@ -132,13 +145,16 @@ const BotCard = ({ botId, onNavigate }) => {
 
   return (
     <div className={`bot-card ${isStalled ? 'stalled-border' : ''}`}>
+      {/* Toast Notification Element */}
+      {showToast && <div className="toast-notification">{toastMsg}</div>}
+
       <div className="card-header">
         <div>
           <h2 className="pair-title">{bot.symbol}</h2>
           <span className="text-[9px] text-slate-500 font-mono">B-ID: {bot.id.toString().padStart(4, '0')}</span>
         </div>
         <div className="flex flex-col items-end">
-          <span className={`status-badge ${bot.is_running ? (isStalled ? 'stalled' : 'active') : 'stopped'}`}>
+          <span className={`status-badge ${bot.is_running ? (isStalled ? 'active stalled' : 'active') : 'stopped'}`}>
             {isStalled ? '● STALLED' : (bot.is_running ? '● LIVE' : '○ STOPPED')}
           </span>
           {isStalled && <span className="text-[8px] text-red-500 animate-pulse mt-1">ENGINE UNRESPONSIVE</span>}
@@ -215,15 +231,14 @@ const BotCard = ({ botId, onNavigate }) => {
               />
               {isEditing && (
                 <button 
-                  className="validate-btn" 
+                  className={`validate-btn ${tgStatus.valid ? 'success-glow' : ''}`} 
                   onClick={validateTelegram} 
                   disabled={tgStatus.loading || !telegramData.bot_token || !telegramData.chat_id}
                 >
-                  {tgStatus.loading ? 'CHECKING...' : 'TEST CONNECTION'}
+                  {tgStatus.loading ? 'CHECKING...' : (tgStatus.valid ? '✓ VERIFIED' : 'TEST CONNECTION')}
                 </button>
               )}
-              {tgStatus.valid && <p className="text-green-400 text-[10px] mt-1 text-center">✓ Connection Valid!</p>}
-              {tgStatus.error && <p className="text-red-400 text-[10px] mt-1 text-center">✗ {tgStatus.error}</p>}
+              {tgStatus.error && <p className="text-red-400 text-[10px] mt-1 text-center font-mono">✗ {tgStatus.error}</p>}
             </div>
           )}
         </div>
