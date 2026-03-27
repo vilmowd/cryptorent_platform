@@ -87,6 +87,7 @@ async def get_bot_stats(
     if not bot:
         raise HTTPException(status_code=404, detail="Bot not found")
     
+    # These are already pulled from the DB, we just need to send them!
     price = bot.last_known_price or 0
     rsi = bot.last_rsi or 0
     ema200 = bot.last_ema_200 or 0
@@ -97,13 +98,17 @@ async def get_bot_stats(
         "is_running": bot.is_running,
         "updated_at": bot.updated_at,
         "daily_pnl": f"${bot.daily_pnl:,.2f}",
-        # --- Pass Telegram data back to React ---
         "bot_token": bot.telegram_bot_token,
         "chat_id": bot.telegram_chat_id,
-        # ----------------------------------------
         "min_trade_price": bot.min_trade_price,
         "max_trade_price": bot.max_trade_price,
         "max_daily_loss": bot.max_daily_loss,
+        
+        # --- ADDED THESE TWO LINES TO FIX THE UI ---
+        "current_price": price,
+        "rsi_value": rsi,
+        # -------------------------------------------
+
         "decision_factors": {
             "is_trend_ok": price > ema200 if price and ema200 else False,
             "is_rsi_pullback": bot.rsi_low < rsi < bot.rsi_high if rsi else False,

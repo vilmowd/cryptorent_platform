@@ -9,9 +9,7 @@ const BotAnalytics = ({ botId, onBack }) => {
   const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
   const fetchData = useCallback(async () => {
-    // CRITICAL: Don't fetch if botId is missing
     if (!botId) return;
-
     try {
       const token = localStorage.getItem('token');
       const headers = { 
@@ -27,18 +25,16 @@ const BotAnalytics = ({ botId, onBack }) => {
       if (resStats.ok) {
         const statsData = await resStats.json();
         setData(statsData);
-      } else {
-        setError("Could not retrieve engine stats.");
       }
       
       if (resTrades.ok) {
         const tradesData = await resTrades.json();
-        setTrades(tradesData);
+        setTrades(Array.isArray(tradesData) ? tradesData : []);
       }
-      
+      setError(null);
     } catch (err) {
       console.error("Polling Error:", err);
-      setError("Terminal Connection Lost...");
+      setError("Sync Interrupted...");
     }
   }, [botId, API_BASE_URL]);
 
@@ -48,40 +44,42 @@ const BotAnalytics = ({ botId, onBack }) => {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // Handle Loading State
-  if (!data && !error) {
-    return (
-      <div className="analytics-container">
-        <div className="loading-text">DECRYPTING ENGINE DATA...</div>
-      </div>
-    );
-  }
+  if (!data && !error) return <div className="loading-text">Accessing Secure Ledger...</div>;
+  if (error) return <div className="status-alert error">{error}</div>;
 
-  if (error) return <div className="status-alert error" style={{margin: '20px'}}>{error}</div>;
-
+  // Mapping based on your JSON response
+  const factors = data.decision_factors || {};
+  
   return (
     <div className="analytics-container">
       <div className="analytics-header">
         <button onClick={onBack} className="back-btn">← EXIT TERMINAL</button>
-        <h1 style={{color: 'white'}}>Engine Transparency: Bot #{botId}</h1>
+        <h1 style={{color: 'white'}}>Engine Transparency: {data.symbol || `Bot #${botId}`}</h1>
       </div>
 
       <div className="brain-grid">
         <div className="logic-card">
           <h3>Live Strategy Logic</h3>
-          {/* Use Optional Chaining (?.) to prevent crashes */}
-          <div className={`check ${data.decision_factors?.is_trend_ok ? 'pass' : 'fail'}`}>
-            {data.decision_factors?.is_trend_ok ? 'TREND CONFIRMED' : 'WAITING FOR TREND'}
+          <div className={`check ${factors.is_trend_ok ? 'pass' : 'fail'}`}>
+            {factors.is_trend_ok ? 'TREND CONFIRMED' : 'WAITING FOR TREND'}
           </div>
-          <div className={`check ${data.decision_factors?.is_rsi_pullback ? 'pass' : 'fail'}`}>
-            {data.decision_factors?.is_rsi_pullback ? 'RSI ENTRY REACHED' : 'RSI OUT OF RANGE'}
+          <div className={`check ${factors.is_rsi_pullback ? 'pass' : 'fail'}`}>
+            {factors.is_rsi_pullback ? 'RSI ENTRY REACHED' : 'RSI OUT OF RANGE'}
+          </div>
+          <div className={`check ${factors.is_near_ema ? 'pass' : 'fail'}`}>
+            {factors.is_near_ema ? 'EMA PROXIMITY OK' : 'PRICE FAR FROM EMA'}
           </div>
         </div>
 
         <div className="stats-card">
           <h3>Calculated Indicators</h3>
-          <p style={{color: '#94a3b8'}}>Price: <strong style={{color: '#f8fafc'}}>${data.current_price?.toLocaleString() || '---'}</strong></p>
-          <p style={{color: '#94a3b8'}}>RSI: <strong style={{color: '#f8fafc'}}>{data.rsi_value || 'Calculating...'}</strong></p>
+          {/* Using fallbacks since these aren't in your JSON yet */}
+          <p style={{color: '#94a3b8'}}>Price: <strong style={{color: '#f8fafc'}}>
+            {data.current_price ? `$${data.current_price.toLocaleString()}` : 'FETCHING...'}
+          </strong></p>
+          <p style={{color: '#94a3b8'}}>Daily PnL: <strong style={{color: data.daily_pnl?.includes('-') ? '#f87171' : '#4ade80'}}>
+            {data.daily_pnl || '$0.00'}
+          </strong></p>
         </div>
 
         <div className="history-card full-width">
@@ -97,15 +95,15 @@ const BotAnalytics = ({ botId, onBack }) => {
                 </tr>
               </thead>
               <tbody>
-                {trades && trades.length > 0 ? trades.map((trade, i) => (
+                {trades.length > 0 ? trades.map((trade, i) => (
                   <tr key={i} className={trade.side?.toLowerCase().includes('sell') ? 'trade-win' : 'trade-buy'}>
                     <td>{trade.timestamp ? new Date(trade.timestamp).toLocaleTimeString() : '---'}</td>
                     <td style={{fontWeight: 'bold'}}>{trade.side}</td>
-                    <td>${trade.price?.toLocaleString() || '0.00'}</td>
+                    <td>${Number(trade.price || 0).toLocaleString()}</td>
                     <td>{trade.pnl ? `${trade.pnl}%` : '---'}</td>
                   </tr>
                 )) : (
-                  <tr><td colSpan="4" style={{textAlign: 'center', padding: '20px', color: '#64748b'}}>No trades recorded.</td></tr>
+                  <tr><td colSpan="4" style={{textAlign: 'center', padding: '20px', color: '#64748b'}}>No trades recorded in this session.</td></tr>
                 )}
               </tbody>
             </table>
