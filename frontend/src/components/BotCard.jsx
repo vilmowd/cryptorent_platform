@@ -213,32 +213,59 @@ const BotCard = ({ botId, onNavigate }) => {
 
           {showTelegram && (
             <div className="telegram-section">
-              <input 
-                type="password"
-                placeholder="Bot Token"
-                className="tg-input"
-                disabled={!isEditing}
-                value={telegramData.bot_token}
-                onChange={(e) => setTelegramData({...telegramData, bot_token: e.target.value})}
-              />
-              <input 
-                type="text"
-                placeholder="Chat ID"
-                className="tg-input"
-                disabled={!isEditing}
-                value={telegramData.chat_id}
-                onChange={(e) => setTelegramData({...telegramData, chat_id: e.target.value})}
-              />
+              {/* Token Input */}
+              <div className="input-wrapper">
+                <input 
+                  type="password"
+                  placeholder="BOT TOKEN"
+                  className="tg-input"
+                  disabled={!isEditing}
+                  value={telegramData.bot_token}
+                  onChange={(e) => setTelegramData({...telegramData, bot_token: e.target.value})}
+                />
+              </div>
+
+              {/* Chat ID Input with Copy Button */}
+              <div className="input-wrapper flex-row">
+                <input 
+                  type="text"
+                  placeholder="CHAT ID"
+                  className="tg-input"
+                  disabled={!isEditing}
+                  value={telegramData.chat_id}
+                  onChange={(e) => setTelegramData({...telegramData, chat_id: e.target.value})}
+                />
+                <button 
+                  type="button"
+                  className="copy-btn"
+                  onClick={() => {
+                    navigator.clipboard.writeText(telegramData.chat_id);
+                    triggerToast("Chat ID Copied!");
+                  }}
+                  title="Copy ID"
+                >
+                  📋
+                </button>
+              </div>
+
+              {/* The Test/Verify Button */}
               {isEditing && (
                 <button 
+                  type="button" 
                   className={`validate-btn ${tgStatus.valid ? 'success-glow' : ''}`} 
                   onClick={validateTelegram} 
                   disabled={tgStatus.loading || !telegramData.bot_token || !telegramData.chat_id}
                 >
-                  {tgStatus.loading ? 'CHECKING...' : (tgStatus.valid ? '✓ VERIFIED' : 'TEST CONNECTION')}
+                  {tgStatus.loading ? 'VERIFYING...' : (tgStatus.valid ? '✓ CREDENTIALS VALID' : 'TEST CONNECTION')}
                 </button>
               )}
-              {tgStatus.error && <p className="text-red-400 text-[10px] mt-1 text-center font-mono">✗ {tgStatus.error}</p>}
+
+              {/* Error Display */}
+              {tgStatus.error && (
+                <p className="text-red-400 text-[9px] mt-1 text-center font-mono bg-red-500/10 py-1 rounded">
+                  ✗ {tgStatus.error}
+                </p>
+              )}
             </div>
           )}
         </div>

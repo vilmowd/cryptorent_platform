@@ -487,3 +487,49 @@ logic-grid { display: flex; gap: 5px; margin-top: 10px; }
   color: #ffffff;
   border-color: #ef4444;
 }
+
+/* Container for input + icons */
+.input-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Small Copy Button */
+.copy-btn {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  border-radius: 6px;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+}
+
+.copy-btn:hover {
+  background: #334155;
+  color: #ffffff;
+  border-color: #60a5fa;
+}
+
+/* Ensure inputs take up remaining space */
+.flex-row .tg-input {
+  flex: 1;
+}
+
+/* Fix for buttons with no text */
+.validate-btn {
+  min-height: 38px; /* Ensures button is clickable even if text fails to render */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
