@@ -184,41 +184,59 @@ class StrategyManager:
     def run_tick(self):
         """Main loop executed by the Engine."""
         try:
+            # 1. IMMEDIATE HEARTBEAT & REFRESH
+            # We refresh the bot object to pull in any new settings saved from React
+            self.db.refresh(self.bot)
+            self.bot.updated_at = datetime.now(timezone.utc)
+            
+            # 2. FETCH MARKET DATA
             data = self.get_data()
             price = data['close']
             
-            # Sync Stats to DB
+            # 3. SYNC STATS (Updates current price/RSI on the Dashboard)
             self.bot.last_known_price = price
             self.bot.last_rsi = float(data['rsi'])
             self.bot.last_ema_200 = float(data['ema_200'])
             self.bot.last_ema_20 = float(data['ema_20'])
-            self.bot.updated_at = datetime.now(timezone.utc)
+            
+            # We commit here so the Dashboard sees the bot is "Live" even if guardrails block a trade
             self.db.commit()
 
-            # Guardrails
+            # 4. GUARDRAILS (Early exits now happen AFTER the heartbeat)
             if not self.bot.in_position:
-                if self.bot.min_trade_price and price < self.bot.min_trade_price: return
-                if self.bot.max_trade_price and price > self.bot.max_trade_price: return
+                # Check if price is within the user-defined safe range
+                if self.bot.min_trade_price and price < self.bot.min_trade_price:
+                    return
+                if self.bot.max_trade_price and price > self.bot.max_trade_price:
+                    return
 
+            # Check for Daily Loss limits or Loss Streaks
             blocked_reason = self.check_risk_controls()
-            if blocked_reason and not self.bot.in_position: return
+            if blocked_reason and not self.bot.in_position:
+                return
 
-            # Strategy
+            # 5. STRATEGY LOGIC
             trend_ok = price > data['ema_200']
             pullback_ok = self.bot.rsi_low < data['rsi'] < self.bot.rsi_high
             near_ema_ok = price <= data['ema_20']
 
             if not self.bot.in_position:
+                # ENTRY LOGIC
                 if trend_ok and pullback_ok and near_ema_ok:
                     size = self.calculate_dynamic_size(price, data['atr'])
                     self.record_execution("STRATEGY ENTRY", "BUY", price, size)
 
             elif self.bot.in_position:
+                # EXIT LOGIC
                 sell, action_type = False, ""
+                
+                # Stop Loss check
                 if price <= self.bot.buy_price * self.bot.stop_loss:
                     sell, action_type = True, "STOP LOSS"
+                # Take Profit check
                 elif price >= self.bot.buy_price * self.bot.take_profit:
                     sell, action_type = True, "TAKE PROFIT"
+                # Overbought RSI check
                 elif data['rsi'] > 70:
                     sell, action_type = True, "RSI EXIT"
 
@@ -227,5 +245,6 @@ class StrategyManager:
                     self.record_execution(action_type, "SELL", price, self.bot.position_size, pnl=pnl)
 
         except Exception as e:
-            # Use the new log_error function to catch runtime crashes
-            self.log_error(str(e))
+            self.db.rollback()
+            # This will now trigger your Telegram alert and write to error_log.txt
+            self.log_error(f"Tick Crash: {str(e)}")

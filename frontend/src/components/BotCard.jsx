@@ -48,32 +48,32 @@ const BotCard = ({ botId, onNavigate }) => {
         const data = await response.json();
         setBot(data);
         
+        // CRITICAL: Only update thresholds/telegram if NOT in edit mode
+        // And ensure the keys match the Python return exactly
         if (!isEditing) {
           setThresholds({
-            min_trade_price: data.min_trade_price || 0,
-            max_trade_price: data.max_trade_price || 0,
-            max_daily_loss: data.max_daily_loss || 0
+            min_trade_price: data.min_trade_price ?? 0,
+            max_trade_price: data.max_trade_price ?? 0,
+            max_daily_loss: data.max_daily_loss ?? 0
           });
           setTelegramData({
-            bot_token: data.telegram_bot_token || '',
+            bot_token: data.telegram_bot_token || '', // Check if Python returns this key
             chat_id: data.telegram_chat_id || ''
           });
         }
         
+        // Heartbeat Logic
         if (data.is_running && data.last_sync) {
           const lastUpdate = new Date(data.last_sync);
           const secondsAgo = (new Date() - lastUpdate) / 1000;
           setIsStalled(secondsAgo > 120); 
-        } else {
-          setIsStalled(false);
         }
         setLoading(false);
       }
     } catch (error) {
-      console.error("BotCard Sync Error:", error);
-      setLoading(false);
+      console.error("Sync Error:", error);
     }
-  }, [botId, isEditing, API_BASE_URL]);
+  }, [botId, isEditing]); // Ensure isEditing is a dependency
 
   useEffect(() => {
     fetchStats();
