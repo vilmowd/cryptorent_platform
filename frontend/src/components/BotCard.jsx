@@ -38,7 +38,7 @@ const BotCard = ({ botId, onNavigate }) => {
         const data = await response.json();
         setBot(data);
         
-        // Sync local form state only if we aren't currently typing
+        // Only sync form state if NOT editing to prevent overwriting user input
         if (!isEditing) {
           setThresholds({
             min_trade_price: data.min_trade_price || 0,
@@ -51,11 +51,10 @@ const BotCard = ({ botId, onNavigate }) => {
           });
         }
         
-        // STALL CHECK: Uses the last_sync heartbeat from FastAPI
         if (data.is_running && data.last_sync) {
           const lastUpdate = new Date(data.last_sync);
           const secondsAgo = (new Date() - lastUpdate) / 1000;
-          setIsStalled(secondsAgo > 120); // Stalled if no engine pulse for 2 mins
+          setIsStalled(secondsAgo > 120); 
         } else {
           setIsStalled(false);
         }
@@ -69,13 +68,29 @@ const BotCard = ({ botId, onNavigate }) => {
 
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 10000); // Polling every 10s is safer
+    const interval = setInterval(fetchStats, 10000); 
     return () => clearInterval(interval);
   }, [fetchStats]);
 
-  // FIX: Only send the specific settings, NEVER the indicators
+  // Validate credentials via Telegram API directly
+  const validateTelegram = async () => {
+    setTgStatus({ loading: true, valid: false, error: null });
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${telegramData.bot_token}/getChat?chat_id=${telegramData.chat_id}`);
+      const data = await res.json();
+      if (data.ok) {
+        setTgStatus({ loading: false, valid: true, error: null });
+      } else {
+        setTgStatus({ loading: false, valid: false, error: data.description });
+      }
+    } catch (err) {
+      setTgStatus({ loading: false, valid: false, error: "Connection Failed" });
+    }
+  };
+
   const saveSettings = async () => {
     try {
+      // Explicitly pick only the fields the PATCH endpoint expects
       const payload = {
         min_trade_price: Number(thresholds.min_trade_price),
         max_trade_price: Number(thresholds.max_trade_price),
@@ -92,6 +107,7 @@ const BotCard = ({ botId, onNavigate }) => {
 
       if (res.ok) {
         setIsEditing(false);
+        setTgStatus({ loading: false, valid: false, error: null }); // Reset status after save
         fetchStats();
       }
     } catch (error) {
@@ -125,7 +141,7 @@ const BotCard = ({ botId, onNavigate }) => {
           <span className={`status-badge ${bot.is_running ? (isStalled ? 'stalled' : 'active') : 'stopped'}`}>
             {isStalled ? '● STALLED' : (bot.is_running ? '● LIVE' : '○ STOPPED')}
           </span>
-          {isStalled && <span className="text-[8px] color-[#ef4444] animate-pulse">ENGINE UNRESPONSIVE</span>}
+          {isStalled && <span className="text-[8px] text-red-500 animate-pulse mt-1">ENGINE UNRESPONSIVE</span>}
         </div>
       </div>
 
@@ -155,6 +171,7 @@ const BotCard = ({ botId, onNavigate }) => {
               <input 
                 type="number" 
                 disabled={!isEditing} 
+                className="tg-input"
                 value={thresholds.min_trade_price} 
                 onChange={(e) => setThresholds({...thresholds, min_trade_price: e.target.value})} 
               />
@@ -164,6 +181,7 @@ const BotCard = ({ botId, onNavigate }) => {
               <input 
                 type="number" 
                 disabled={!isEditing} 
+                className="tg-input"
                 value={thresholds.max_daily_loss} 
                 onChange={(e) => setThresholds({...thresholds, max_daily_loss: e.target.value})} 
               />
@@ -195,6 +213,17 @@ const BotCard = ({ botId, onNavigate }) => {
                 value={telegramData.chat_id}
                 onChange={(e) => setTelegramData({...telegramData, chat_id: e.target.value})}
               />
+              {isEditing && (
+                <button 
+                  className="validate-btn" 
+                  onClick={validateTelegram} 
+                  disabled={tgStatus.loading || !telegramData.bot_token || !telegramData.chat_id}
+                >
+                  {tgStatus.loading ? 'CHECKING...' : 'TEST CONNECTION'}
+                </button>
+              )}
+              {tgStatus.valid && <p className="text-green-400 text-[10px] mt-1 text-center">✓ Connection Valid!</p>}
+              {tgStatus.error && <p className="text-red-400 text-[10px] mt-1 text-center">✗ {tgStatus.error}</p>}
             </div>
           )}
         </div>
