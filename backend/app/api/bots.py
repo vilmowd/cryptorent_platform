@@ -73,21 +73,13 @@ async def create_bot(
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @router.get("/{bot_id}/stats")
-async def get_bot_stats(
-    bot_id: int, 
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Consolidated stats including Telegram credentials for the UI."""
-    bot = db.query(BotInstance).filter(
-        BotInstance.id == bot_id, 
-        BotInstance.user_id == current_user.id
-    ).first()
+async def get_bot_stats(bot_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    bot = db.query(BotInstance).filter(BotInstance.id == bot_id, BotInstance.user_id == current_user.id).first()
     
     if not bot:
         raise HTTPException(status_code=404, detail="Bot not found")
     
-    # These are already pulled from the DB, we just need to send them!
+    # Ensure these variables are assigned
     price = bot.last_known_price or 0
     rsi = bot.last_rsi or 0
     ema200 = bot.last_ema_200 or 0
@@ -96,18 +88,12 @@ async def get_bot_stats(
         "id": bot.id,
         "symbol": bot.symbol,
         "is_running": bot.is_running,
-        "updated_at": bot.updated_at,
         "daily_pnl": f"${bot.daily_pnl:,.2f}",
-        "bot_token": bot.telegram_bot_token,
-        "chat_id": bot.telegram_chat_id,
-        "min_trade_price": bot.min_trade_price,
-        "max_trade_price": bot.max_trade_price,
-        "max_daily_loss": bot.max_daily_loss,
         
-        # --- ADDED THESE TWO LINES TO FIX THE UI ---
+        # --- CRITICAL: THESE KEYS MUST MATCH YOUR REACT CODE ---
         "current_price": price,
         "rsi_value": rsi,
-        # -------------------------------------------
+        # -------------------------------------------------------
 
         "decision_factors": {
             "is_trend_ok": price > ema200 if price and ema200 else False,
