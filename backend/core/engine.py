@@ -1,6 +1,6 @@
 import time
 from datetime import datetime
-from backend.app.database import SessionLocal # Ensure this path is correct
+from app.database import SessionLocal # Ensure this path is correct
 from models.bot import BotInstance
 from app.engine.strategy import StrategyManager
 
