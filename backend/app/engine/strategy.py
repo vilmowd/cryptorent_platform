@@ -193,28 +193,42 @@ class StrategyManager:
     def run_tick(self):
         """Main loop executed by the Engine."""
         try:
-            # 1. FORCE REFRESH FROM DB (This fixes the "forgotten" data)
-            self.db.expire(self.bot) # Tells SQLAlchemy the object is old
-            self.db.refresh(self.bot) # Pulls fresh Telegram Token/Chat ID
-
-            # 1. HEARTBEAT FIRST
-            # This ensures the 'Live' status stays green even if exchange API fails
+            # 1. FORCE REFRESH FROM DB
+            self.db.expire(self.bot)
             self.db.refresh(self.bot)
+
+            # --- STARTUP ALERT LOGIC ---
+            # If updated_at is None, this is the very first tick since the bot was toggled ON
+            if self.bot.updated_at is None:
+                startup_msg = (
+                    f"🤖 <b>{self.bot.symbol} Strategy Initialized</b>\n"
+                    f"────────────────────\n"
+                    f"🟢 <b>Status:</b> Monitoring Live Market\n"
+                    f"📈 <b>Trend:</b> EMA 200 Filter Active\n"
+                    f"🛡️ <b>Safety:</b> Floor ${self.bot.min_trade_price:,.2f} | Ceiling ${self.bot.max_trade_price:,.2f}\n"
+                    f"────────────────────\n"
+                    f"<i>Checking for trade signals...</i>"
+                )
+                self.send_telegram_msg(startup_msg)
+            # ---------------------------
+
+            # 2. HEARTBEAT & SYNC
+            # We update 'updated_at' now so the Startup Alert only fires ONCE.
             self.bot.updated_at = datetime.now(timezone.utc)
             self.db.commit()
             
-            # 2. FETCH MARKET DATA
+            # 3. FETCH MARKET DATA
             data = self.get_data()
             price = float(data['close'])
             
-            # 3. SYNC LIVE STATS TO DB
+            # 4. SYNC LIVE STATS TO DB
             self.bot.last_known_price = price
             self.bot.last_rsi = float(data['rsi'])
             self.bot.last_ema_200 = float(data['ema_200'])
             self.bot.last_ema_20 = float(data['ema_20'])
             self.db.commit()
 
-            # 4. GUARDRAILS
+            # 5. GUARDRAILS
             if not self.bot.in_position:
                 if self.bot.min_trade_price and price < self.bot.min_trade_price:
                     return
@@ -223,12 +237,14 @@ class StrategyManager:
 
             blocked_reason = self.check_risk_controls()
             if blocked_reason and not self.bot.in_position:
+                # Optionally notify Telegram if blocked by risk controls
+                # self.send_telegram_msg(f"⚠️ {self.bot.symbol} Trading paused: {blocked_reason}")
                 return
 
-            # 5. STRATEGY LOGIC
+            # 6. STRATEGY LOGIC
             trend_ok = price > data['ema_200']
-            pullback_ok = 30 < data['rsi'] < 65 # Defaulting if bot ranges aren't set
-            near_ema_ok = price <= data['ema_20'] * 1.001 # Slight buffer
+            pullback_ok = 30 < data['rsi'] < 65 
+            near_ema_ok = price <= data['ema_20'] * 1.001
 
             if not self.bot.in_position:
                 if trend_ok and pullback_ok and near_ema_ok:

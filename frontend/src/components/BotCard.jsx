@@ -163,7 +163,7 @@ const BotCard = ({ botId, onNavigate }) => {
         </div>
         <div className="flex flex-col items-end">
           <span className={`status-badge ${bot.is_running ? (isStalled ? 'active stalled' : 'active') : 'stopped'}`}>
-            {isStalled ? '● STALLED' : (bot.is_running ? '● LIVE' : '○ STOPPED')}
+            {isStalled ? 'STALLED' : (bot.is_running ? 'LIVE' : 'STOPPED')}
           </span>
           {isStalled && <span className="text-[8px] text-red-500 animate-pulse mt-1">ENGINE UNRESPONSIVE</span>}
         </div>

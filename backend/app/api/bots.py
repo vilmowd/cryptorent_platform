@@ -13,6 +13,7 @@ router = APIRouter(prefix="/bots", tags=["Bots"])
 # --- Helper for API Keys ---
 def encrypt_key(key: str):
     if not key: return None
+    # Note: Consider using a real library like 'cryptography' for production!
     return f"dev_enc_{key[::-1]}" 
 
 @router.get("/my-bots")
@@ -42,8 +43,7 @@ async def create_bot(bot_data: dict, db: Session = Depends(get_db), current_user
         max_daily_loss=bot_data.get("max_daily_loss", 50.0),
         telegram_bot_token=bot_data.get("bot_token"),
         telegram_chat_id=bot_data.get("chat_id"),
-        last_known_price=0.0,
-        last_rsi=0.0
+        updated_at=None  # Explicitly start as None
     )
 
     try:
@@ -73,7 +73,7 @@ async def get_bot_stats(bot_id: int, db: Session = Depends(get_db), current_user
         "rsi_value": rsi,
         "last_sync": bot.updated_at.isoformat() if bot.updated_at else None,
         
-        # --- ADD THESE MISSING FIELDS ---
+        # Consistent field names for React fetchStats()
         "min_trade_price": bot.min_trade_price,
         "max_trade_price": bot.max_trade_price,
         "max_daily_loss": bot.max_daily_loss,
@@ -87,27 +87,16 @@ async def get_bot_stats(bot_id: int, db: Session = Depends(get_db), current_user
         }
     }
 
-@router.get("/{bot_id}/logs")
-async def get_bot_logs(bot_id: int, current_user: User = Depends(get_current_user)):
-    """Fetches the terminal logs for the UI."""
-    log_path = "error_log.txt"
-    if not os.path.exists(log_path):
-        return {"logs": ["System clean. No logs detected."]}
-    with open(log_path, "r") as f:
-        return {"logs": f.readlines()[-50:]}
-
 @router.patch("/{bot_id}/update-settings")
 async def update_safety_thresholds(bot_id: int, settings_data: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     bot = db.query(BotInstance).filter(BotInstance.id == bot_id, BotInstance.user_id == current_user.id).first()
     if not bot: raise HTTPException(status_code=404, detail="Bot not found")
     
-    # Standard thresholds
     if "min_trade_price" in settings_data: bot.min_trade_price = float(settings_data["min_trade_price"])
     if "max_trade_price" in settings_data: bot.max_trade_price = float(settings_data["max_trade_price"])
     if "max_daily_loss" in settings_data: bot.max_daily_loss = float(settings_data["max_daily_loss"])
     
-    # Telegram: Only update if the key is present in the request
-    # This allows a user to update price floors without clearing their saved Telegram token
+    # Telegram keys mapped to match the React 'payload'
     if "bot_token" in settings_data: 
         bot.telegram_bot_token = settings_data["bot_token"]
     if "chat_id" in settings_data: 
@@ -115,20 +104,6 @@ async def update_safety_thresholds(bot_id: int, settings_data: dict, db: Session
     
     db.commit()
     return {"message": "Settings updated"}
-
-@router.put("/{bot_id}/settings")
-async def update_strategy_settings(bot_id: int, settings_data: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    bot = db.query(BotInstance).filter(BotInstance.id == bot_id, BotInstance.user_id == current_user.id).first()
-    if not bot: raise HTTPException(status_code=404, detail="Bot not found")
-    
-    # Selective updates only
-    bot.rsi_low = settings_data.get("rsi_low", bot.rsi_low)
-    bot.rsi_high = settings_data.get("rsi_high", bot.rsi_high) 
-    bot.take_profit = settings_data.get("tp", bot.take_profit)
-    bot.stop_loss = settings_data.get("sl", bot.stop_loss)
-    
-    db.commit()
-    return {"message": "Strategy settings updated"}
 
 @router.post("/{bot_id}/toggle")
 async def toggle_bot(bot_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -138,7 +113,14 @@ async def toggle_bot(bot_id: int, db: Session = Depends(get_db), current_user: U
     if not bot.is_running and not current_user.is_subscription_active:
         raise HTTPException(status_code=402, detail="Subscription inactive")
 
+    # Change State
     bot.is_running = not bot.is_running
+    
+    # --- TRIGGER STARTUP ALERT ---
+    # When starting, we wipe updated_at so the Engine sends the Telegram alert on the first tick
+    if bot.is_running:
+        bot.updated_at = None
+    
     db.commit()
     return {"is_running": bot.is_running}
 
@@ -149,3 +131,11 @@ async def get_bot_trades(bot_id: int, db: Session = Depends(get_db), current_use
         with open(filename, "r") as f:
             return json.load(f)
     return []
+
+@router.get("/{bot_id}/logs")
+async def get_bot_logs(bot_id: int, current_user: User = Depends(get_current_user)):
+    log_path = "error_log.txt"
+    if not os.path.exists(log_path):
+        return {"logs": ["System clean. No logs detected."]}
+    with open(log_path, "r") as f:
+        return {"logs": f.readlines()[-50:]}
