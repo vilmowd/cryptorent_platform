@@ -22,6 +22,7 @@ def start_engine():
                     db.refresh(bot_model) 
 
                     # 3. Process the bot tick
+                    
                     manager = StrategyManager(bot_model, db)
                     manager.run_tick()
                     
