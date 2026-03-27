@@ -15,7 +15,7 @@ setup_database()
 # --- 3. TRADING ENGINE INTEGRATION ---
 # Import your engine start function
 # Adjust the import path if your file is named differently!
-from engine import start_engine 
+from core.engine import start_engine 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
