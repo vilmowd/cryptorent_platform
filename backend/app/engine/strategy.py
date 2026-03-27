@@ -193,11 +193,15 @@ class StrategyManager:
     def run_tick(self):
         """Main loop executed by the Engine."""
         try:
+            # 1. FORCE REFRESH FROM DB (This fixes the "forgotten" data)
+            self.db.expire(self.bot) # Tells SQLAlchemy the object is old
+            self.db.refresh(self.bot) # Pulls fresh Telegram Token/Chat ID
+
             # 1. HEARTBEAT FIRST
             # This ensures the 'Live' status stays green even if exchange API fails
             self.db.refresh(self.bot)
             self.bot.updated_at = datetime.now(timezone.utc)
-            self.db.commit() 
+            self.db.commit()
             
             # 2. FETCH MARKET DATA
             data = self.get_data()

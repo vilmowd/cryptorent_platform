@@ -7,7 +7,6 @@ const BotCard = ({ botId, onNavigate }) => {
   const [isStalled, setIsStalled] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   
-  // Toast State
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
 
@@ -48,8 +47,7 @@ const BotCard = ({ botId, onNavigate }) => {
         const data = await response.json();
         setBot(data);
         
-        // CRITICAL: Only update thresholds/telegram if NOT in edit mode
-        // And ensure the keys match the Python return exactly
+        // Sync inputs with DB only when NOT editing
         if (!isEditing) {
           setThresholds({
             min_trade_price: data.min_trade_price ?? 0,
@@ -57,23 +55,32 @@ const BotCard = ({ botId, onNavigate }) => {
             max_daily_loss: data.max_daily_loss ?? 0
           });
           setTelegramData({
-            bot_token: data.telegram_bot_token || '', // Check if Python returns this key
+            bot_token: data.telegram_bot_token || '', 
             chat_id: data.telegram_chat_id || ''
           });
         }
         
-        // Heartbeat Logic
+        // --- STALL LOGIC FIX ---
         if (data.is_running && data.last_sync) {
-          const lastUpdate = new Date(data.last_sync);
-          const secondsAgo = (new Date() - lastUpdate) / 1000;
-          setIsStalled(secondsAgo > 120); 
+          // Ensure the date is treated as UTC (FastAPI usually sends ISO without the Z)
+          const syncStr = data.last_sync.endsWith('Z') ? data.last_sync : `${data.last_sync}Z`;
+          const lastUpdate = new Date(syncStr);
+          const now = new Date();
+          const secondsAgo = (now.getTime() - lastUpdate.getTime()) / 1000;
+          
+          // If the bot is running, check if it has checked in within 130 seconds
+          setIsStalled(secondsAgo > 130); 
+        } else {
+          // If the bot is NOT running, it CANNOT be stalled.
+          setIsStalled(false);
         }
+        
         setLoading(false);
       }
     } catch (error) {
       console.error("Sync Error:", error);
     }
-  }, [botId, isEditing]); // Ensure isEditing is a dependency
+  }, [botId, isEditing, API_BASE_URL]);
 
   useEffect(() => {
     fetchStats();
@@ -97,19 +104,16 @@ const BotCard = ({ botId, onNavigate }) => {
     }
   };
 
- const saveSettings = async () => {
+  const saveSettings = async () => {
     try {
       const payload = {
         min_trade_price: Number(thresholds.min_trade_price),
         max_trade_price: Number(thresholds.max_trade_price),
         max_daily_loss: Number(thresholds.max_daily_loss),
+        // Send these explicitly so the Backend can map them
+        bot_token: telegramData.bot_token,
+        chat_id: telegramData.chat_id
       };
-
-      // Only add Telegram keys if they actually have content
-      if (telegramData.bot_token) payload.bot_token = telegramData.bot_token;
-      if (telegramData.chat_id) payload.chat_id = telegramData.chat_id;
-
-      console.log("Sending Payload:", payload);
 
       const res = await fetch(`${API_BASE_URL}/bots/${botId}/update-settings`, {
         method: 'PATCH',
@@ -119,15 +123,14 @@ const BotCard = ({ botId, onNavigate }) => {
 
       if (res.ok) {
         setIsEditing(false);
-        triggerToast("Settings Saved to DB");
-        await fetchStats(); // Force a re-fetch to confirm the DB has the data
+        triggerToast("Settings Saved");
+        await fetchStats(); 
       } else {
         const errorData = await res.json();
-        triggerToast(`Save Failed: ${errorData.detail || 'Unknown Error'}`);
+        triggerToast(`Save Failed: ${errorData.detail || 'Error'}`);
       }
     } catch (error) {
-      console.error("Update failed:", error);
-      triggerToast("Network Error: Check Console");
+      triggerToast("Network Error");
     }
   };
 
@@ -143,7 +146,7 @@ const BotCard = ({ botId, onNavigate }) => {
       triggerToast(data.is_running ? "Engine Initialized" : "Engine Shutdown");
       fetchStats(); 
     } catch (error) {
-      console.error("Toggle action failed:", error);
+      console.error("Toggle failed:", error);
     }
   };
 
@@ -151,7 +154,6 @@ const BotCard = ({ botId, onNavigate }) => {
 
   return (
     <div className={`bot-card ${isStalled ? 'stalled-border' : ''}`}>
-      {/* Toast Notification Element */}
       {showToast && <div className="toast-notification">{toastMsg}</div>}
 
       <div className="card-header">
@@ -169,13 +171,8 @@ const BotCard = ({ botId, onNavigate }) => {
 
       <div className="stats-list">
         {bot.is_running && (
-          <button 
-            className="analytics-trigger-btn"
-            onClick={() => onNavigate('analytics', botId)}
-          >
-            <span className="icon">⚡</span> 
-            <span>OPEN ANALYTICS TERMINAL</span>
-            <span className="arrow">→</span>
+          <button className="analytics-trigger-btn" onClick={() => onNavigate('analytics', botId)}>
+            <span className="icon">⚡</span> <span>OPEN ANALYTICS TERMINAL</span> <span className="arrow">→</span>
           </button>
         )}
 
@@ -190,88 +187,51 @@ const BotCard = ({ botId, onNavigate }) => {
           <div className="safety-inputs">
             <div className="input-group">
               <label>Floor Price</label>
-              <input 
-                type="number" 
-                disabled={!isEditing} 
-                className="tg-input"
+              <input type="number" disabled={!isEditing} className="tg-input"
                 value={thresholds.min_trade_price} 
                 onChange={(e) => setThresholds({...thresholds, min_trade_price: e.target.value})} 
               />
             </div>
             <div className="input-group">
               <label>Daily Stop</label>
-              <input 
-                type="number" 
-                disabled={!isEditing} 
-                className="tg-input"
+              <input type="number" disabled={!isEditing} className="tg-input"
                 value={thresholds.max_daily_loss} 
                 onChange={(e) => setThresholds({...thresholds, max_daily_loss: e.target.value})} 
               />
             </div>
           </div>
 
-          <button 
-            className="tg-toggle-btn"
-            onClick={() => setShowTelegram(!showTelegram)}
-          >
+          <button className="tg-toggle-btn" onClick={() => setShowTelegram(!showTelegram)}>
             {showTelegram ? '▲ Hide Alerts' : '▼ Telegram Alerts'}
           </button>
 
           {showTelegram && (
             <div className="telegram-section">
-              {/* Token Input */}
-              <div className="input-wrapper">
-                <input 
-                  type="password"
-                  placeholder="BOT TOKEN"
-                  className="tg-input"
-                  disabled={!isEditing}
-                  value={telegramData.bot_token}
-                  onChange={(e) => setTelegramData({...telegramData, bot_token: e.target.value})}
-                />
-              </div>
-
-              {/* Chat ID Input with Copy Button */}
+              <input type="password" placeholder="BOT TOKEN" className="tg-input" disabled={!isEditing}
+                value={telegramData.bot_token}
+                onChange={(e) => setTelegramData({...telegramData, bot_token: e.target.value})}
+              />
               <div className="input-wrapper flex-row">
-                <input 
-                  type="text"
-                  placeholder="CHAT ID"
-                  className="tg-input"
-                  disabled={!isEditing}
+                <input type="text" placeholder="CHAT ID" className="tg-input" disabled={!isEditing}
                   value={telegramData.chat_id}
                   onChange={(e) => setTelegramData({...telegramData, chat_id: e.target.value})}
                 />
-                <button 
-                  type="button"
-                  className="copy-btn"
-                  onClick={() => {
-                    navigator.clipboard.writeText(telegramData.chat_id);
-                    triggerToast("Chat ID Copied!");
-                  }}
-                  title="Copy ID"
-                >
-                  📋
-                </button>
+                <button type="button" className="copy-btn" onClick={() => {
+                  navigator.clipboard.writeText(telegramData.chat_id);
+                  triggerToast("Copied!");
+                }}>📋</button>
               </div>
 
-              {/* The Test/Verify Button */}
               {isEditing && (
-                <button 
-                  type="button" 
+                <button type="button" 
                   className={`validate-btn ${tgStatus.valid ? 'success-glow' : ''}`} 
                   onClick={validateTelegram} 
                   disabled={tgStatus.loading || !telegramData.bot_token || !telegramData.chat_id}
                 >
-                  {tgStatus.loading ? 'VERIFYING...' : (tgStatus.valid ? '✓ CREDENTIALS VALID' : 'TEST CONNECTION')}
+                  {tgStatus.loading ? 'VERIFYING...' : (tgStatus.valid ? '✓ VALID' : 'TEST CONNECTION')}
                 </button>
               )}
-
-              {/* Error Display */}
-              {tgStatus.error && (
-                <p className="text-red-400 text-[9px] mt-1 text-center font-mono bg-red-500/10 py-1 rounded">
-                  ✗ {tgStatus.error}
-                </p>
-              )}
+              {tgStatus.error && <p className="text-red-400 text-[9px] mt-1 text-center font-mono">✗ {tgStatus.error}</p>}
             </div>
           )}
         </div>
