@@ -17,6 +17,7 @@ setup_database()
 # Adjust the import path if your file is named differently!
 from core.engine import start_engine 
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # This block runs ON STARTUP
