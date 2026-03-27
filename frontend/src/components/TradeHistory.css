@@ -207,3 +207,58 @@
   margin-bottom: 0.5rem;
   opacity: 0.5;
 }
+
+/* Mobile Card View Styles */
+.mobile-trades-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.trade-card {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 15px;
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #1e293b;
+  padding-bottom: 8px;
+}
+
+.trade-time {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.card-main {
+  display: flex;
+  justify-content: space-between;
+}
+
+.data-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 1px;
+}
+
+.value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+}
+
+.profit { color: #4ade80; }
+.loss { color: #f87171; }
