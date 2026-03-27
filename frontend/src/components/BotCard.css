@@ -296,3 +296,31 @@ logic-grid { display: flex; gap: 5px; margin-top: 10px; }
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+
+/* BotCard.css */
+.bot-card {
+  width: 100%; /* Take full width of the container */
+  max-width: 450px; /* But don't get too big on desktop */
+  min-width: 320px; /* Don't get smaller than the smallest iPhone */
+  margin: 10px 0;
+  box-sizing: border-box; /* Ensures padding doesn't break the width */
+}
+
+/* Stack the Header info on very small screens */
+@media (max-width: 480px) {
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .pair-title {
+    font-size: 1.2rem; /* Shrink text slightly for small screens */
+  }
+
+  /* Make inputs easier to tap with fingers */
+  input, button {
+    min-height: 44px; /* Apple's recommended minimum tap target size */
+  }
+}
