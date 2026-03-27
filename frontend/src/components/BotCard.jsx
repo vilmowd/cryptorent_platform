@@ -97,19 +97,19 @@ const BotCard = ({ botId, onNavigate }) => {
     }
   };
 
-  const saveSettings = async () => {
+ const saveSettings = async () => {
     try {
       const payload = {
-        // Ensure these keys match your FastAPI Pydantic model exactly!
         min_trade_price: Number(thresholds.min_trade_price),
         max_trade_price: Number(thresholds.max_trade_price),
         max_daily_loss: Number(thresholds.max_daily_loss),
-        // Check if your backend uses 'telegram_bot_token' or just 'bot_token'
-        telegram_bot_token: telegramData.bot_token, 
-        telegram_chat_id: telegramData.chat_id
       };
 
-      console.log("Sending Payload:", payload); // Debugging line
+      // Only add Telegram keys if they actually have content
+      if (telegramData.bot_token) payload.bot_token = telegramData.bot_token;
+      if (telegramData.chat_id) payload.chat_id = telegramData.chat_id;
+
+      console.log("Sending Payload:", payload);
 
       const res = await fetch(`${API_BASE_URL}/bots/${botId}/update-settings`, {
         method: 'PATCH',

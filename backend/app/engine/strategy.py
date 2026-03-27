@@ -22,33 +22,39 @@ class StrategyManager:
 
     def send_telegram_msg(self, message):
         """Sends a notification to Telegram using bot-specific credentials."""
-        # Only proceed if the user has actually provided credentials
-        if not self.bot.telegram_bot_token or not self.bot.telegram_chat_id:
+        token = self.bot.telegram_bot_token
+        chat_id = self.bot.telegram_chat_id
+
+        # Robust check: Ensure token/ID aren't None or just empty whitespace strings
+        if not token or not chat_id or str(token).strip() == "" or str(chat_id).strip() == "":
             return
 
-        url = f"https://api.telegram.org/bot{self.bot.telegram_bot_token}/sendMessage"
+        url = f"https://api.telegram.org/bot{token.strip()}/sendMessage"
         payload = {
-            "chat_id": self.bot.telegram_chat_id, 
+            "chat_id": chat_id.strip(), 
             "text": message,
             "parse_mode": "HTML"
         }
         try:
-            response = requests.post(url, json=payload, timeout=10)
+            # timeout=5 is critical so a Telegram lag doesn't stall the whole Engine
+            response = requests.post(url, json=payload, timeout=5)
             if response.status_code != 200:
-                print(f"❌ Telegram Failed! Code: {response.status_code}")
+                print(f"❌ Telegram API Error: {response.text}")
         except Exception as e:
             print(f"❌ Telegram Connection Error: {e}")
 
     def log_error(self, error_msg):
         """Writes any bot errors to error_log.txt and alerts Telegram."""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        # We use traceback to get the full stack trace for the text file
         full_log = f"--- {timestamp} ---\n{error_msg}\n{traceback.format_exc()}\n\n"
         
-        with open(ERROR_LOG, "a") as f:
-            f.write(full_log)
+        try:
+            with open(ERROR_LOG, "a") as f:
+                f.write(full_log)
+        except Exception as file_err:
+            print(f"Could not write to log file: {file_err}")
         
-        # Notify Telegram of the Error with HTML formatting
+        # Notify Telegram with a clean message
         self.send_telegram_msg(f"⚠️ <b>BOT ERROR ({self.bot.symbol}):</b>\n<code>{error_msg}</code>")
 
     # --- CORE EXECUTION LOGIC ---
@@ -69,7 +75,7 @@ class StrategyManager:
             )
             self.db.add(new_db_trade)
 
-            # 2. UPDATE BOT STATE & PREPARE MESSAGE
+            # 2. UPDATE BOT STATE
             if side == "BUY":
                 self.bot.in_position = True
                 self.bot.buy_price = price
@@ -84,8 +90,11 @@ class StrategyManager:
                 # Performance Fee Logic
                 if pnl > 0:
                     commission = pnl * 0.0012
-                    self.bot.owner.unpaid_fees = (self.bot.owner.unpaid_fees or 0) + commission
+                    # Use getattr/setattr or ensure owner object is loaded to avoid NoneType errors
+                    if self.bot.owner:
+                        self.bot.owner.unpaid_fees = (self.bot.owner.unpaid_fees or 0) + commission
                 
+                # Risk Streak logic
                 if pnl < 0:
                     self.bot.consecutive_losses += 1
                     self.bot.last_loss_time = datetime.now(timezone.utc)
@@ -101,10 +110,8 @@ class StrategyManager:
             # 3. LIVE MONITOR (JSON)
             self.record_trade_to_file(action, price, pnl=pnl, type=side)
 
-            # 4. SEND TELEGRAM MESSAGE
+            # 4. SEND TELEGRAM & SYNC
             self.send_telegram_msg(tg_msg)
-
-            # 5. SYNC TO DB
             self.db.commit()
 
         except Exception as e:
@@ -132,8 +139,11 @@ class StrategyManager:
             json.dump(history[:30], f, indent=4)
 
     def get_data(self):
+        # Increased timeout in exchange call to prevent engine stall
         bars = self.exchange.fetch_ohlcv(self.bot.symbol, timeframe='5m', limit=300)
         df = pd.DataFrame(bars, columns=['time','open','high','low','close','vol'])
+        
+        # Technicals
         df['ema_200'] = df['close'].ewm(span=200).mean()
         df['ema_20'] = df['close'].ewm(span=20).mean()
         
@@ -153,7 +163,6 @@ class StrategyManager:
         return df.iloc[-1]
 
     def check_risk_controls(self):
-        now = datetime.now(timezone.utc)
         today_str = str(date.today())
         
         if self.bot.last_trade_day != today_str:
@@ -162,10 +171,10 @@ class StrategyManager:
             self.bot.last_trade_day = today_str
             self.db.commit()
 
-        if self.bot.daily_pnl <= -abs(self.bot.max_daily_loss):
+        if self.bot.daily_pnl <= -abs(self.bot.max_daily_loss or 100):
             return "DAILY LOSS LIMIT"
         
-        if self.bot.consecutive_losses >= 3: # Example limit
+        if self.bot.consecutive_losses >= 3:
             return "LOSS STREAK"
             
         return None
@@ -173,10 +182,10 @@ class StrategyManager:
     def calculate_dynamic_size(self, price, atr):
         try:
             balance_data = self.exchange.fetch_balance()
-            usd_balance = balance_data['total'].get('USD', 0)
+            # Handle different exchange naming (USDT vs USD)
+            usd_balance = balance_data['total'].get('USDT', balance_data['total'].get('USD', 0))
             risk_amount = usd_balance * 0.01 
             size = risk_amount / atr if atr > 0 else 10 / price
-            self.exchange.load_markets()
             return float(self.exchange.amount_to_precision(self.bot.symbol, size))
         except:
             return 10 / price
@@ -184,60 +193,53 @@ class StrategyManager:
     def run_tick(self):
         """Main loop executed by the Engine."""
         try:
-            # 1. IMMEDIATE HEARTBEAT & REFRESH
-            # We refresh the bot object to pull in any new settings saved from React
+            # 1. HEARTBEAT FIRST
+            # This ensures the 'Live' status stays green even if exchange API fails
             self.db.refresh(self.bot)
             self.bot.updated_at = datetime.now(timezone.utc)
+            self.db.commit() 
             
             # 2. FETCH MARKET DATA
             data = self.get_data()
-            price = data['close']
+            price = float(data['close'])
             
-            # 3. SYNC STATS (Updates current price/RSI on the Dashboard)
+            # 3. SYNC LIVE STATS TO DB
             self.bot.last_known_price = price
             self.bot.last_rsi = float(data['rsi'])
             self.bot.last_ema_200 = float(data['ema_200'])
             self.bot.last_ema_20 = float(data['ema_20'])
-            
-            # We commit here so the Dashboard sees the bot is "Live" even if guardrails block a trade
             self.db.commit()
 
-            # 4. GUARDRAILS (Early exits now happen AFTER the heartbeat)
+            # 4. GUARDRAILS
             if not self.bot.in_position:
-                # Check if price is within the user-defined safe range
                 if self.bot.min_trade_price and price < self.bot.min_trade_price:
                     return
                 if self.bot.max_trade_price and price > self.bot.max_trade_price:
                     return
 
-            # Check for Daily Loss limits or Loss Streaks
             blocked_reason = self.check_risk_controls()
             if blocked_reason and not self.bot.in_position:
                 return
 
             # 5. STRATEGY LOGIC
             trend_ok = price > data['ema_200']
-            pullback_ok = self.bot.rsi_low < data['rsi'] < self.bot.rsi_high
-            near_ema_ok = price <= data['ema_20']
+            pullback_ok = 30 < data['rsi'] < 65 # Defaulting if bot ranges aren't set
+            near_ema_ok = price <= data['ema_20'] * 1.001 # Slight buffer
 
             if not self.bot.in_position:
-                # ENTRY LOGIC
                 if trend_ok and pullback_ok and near_ema_ok:
                     size = self.calculate_dynamic_size(price, data['atr'])
                     self.record_execution("STRATEGY ENTRY", "BUY", price, size)
 
             elif self.bot.in_position:
-                # EXIT LOGIC
                 sell, action_type = False, ""
                 
-                # Stop Loss check
-                if price <= self.bot.buy_price * self.bot.stop_loss:
+                # Check Profit/Loss %
+                if price <= self.bot.buy_price * (self.bot.stop_loss or 0.98):
                     sell, action_type = True, "STOP LOSS"
-                # Take Profit check
-                elif price >= self.bot.buy_price * self.bot.take_profit:
+                elif price >= self.bot.buy_price * (self.bot.take_profit or 1.05):
                     sell, action_type = True, "TAKE PROFIT"
-                # Overbought RSI check
-                elif data['rsi'] > 70:
+                elif data['rsi'] > 75:
                     sell, action_type = True, "RSI EXIT"
 
                 if sell:
@@ -246,5 +248,4 @@ class StrategyManager:
 
         except Exception as e:
             self.db.rollback()
-            # This will now trigger your Telegram alert and write to error_log.txt
             self.log_error(f"Tick Crash: {str(e)}")

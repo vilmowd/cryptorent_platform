@@ -101,16 +101,20 @@ async def update_safety_thresholds(bot_id: int, settings_data: dict, db: Session
     bot = db.query(BotInstance).filter(BotInstance.id == bot_id, BotInstance.user_id == current_user.id).first()
     if not bot: raise HTTPException(status_code=404, detail="Bot not found")
     
-    # PROTECTIVE LOGIC: Only update these specific fields
-    # This prevents the '0' reset for last_known_price
+    # Standard thresholds
     if "min_trade_price" in settings_data: bot.min_trade_price = float(settings_data["min_trade_price"])
     if "max_trade_price" in settings_data: bot.max_trade_price = float(settings_data["max_trade_price"])
     if "max_daily_loss" in settings_data: bot.max_daily_loss = float(settings_data["max_daily_loss"])
-    if "bot_token" in settings_data: bot.telegram_bot_token = settings_data["bot_token"]
-    if "chat_id" in settings_data: bot.telegram_chat_id = settings_data["chat_id"]
+    
+    # Telegram: Only update if the key is present in the request
+    # This allows a user to update price floors without clearing their saved Telegram token
+    if "bot_token" in settings_data: 
+        bot.telegram_bot_token = settings_data["bot_token"]
+    if "chat_id" in settings_data: 
+        bot.telegram_chat_id = settings_data["chat_id"]
     
     db.commit()
-    return {"message": "Safety settings updated. Indicators preserved."}
+    return {"message": "Settings updated"}
 
 @router.put("/{bot_id}/settings")
 async def update_strategy_settings(bot_id: int, settings_data: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
