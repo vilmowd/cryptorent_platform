@@ -70,35 +70,55 @@ const SiteInfo = () => {
             <div style={{ color: '#94a3b8', lineHeight: '1.6', maxHeight: '65vh', overflowY: 'auto', fontSize: '0.8rem' }}>
               {activeModal === 'terms' && (
                 <>
-                    <p style={{ fontWeight: 'bold', color: 'white', fontSize: '1rem' }}>TERMS OF SERVICE</p>
-                    <p style={{ fontSize: '0.7rem' }}>Last Updated: March 24, 2026</p>
-                    <p><strong>1. Acceptance:</strong> By using the Service, you agree to these Terms.</p>
-                    <p><strong>2. Accounts:</strong> You are responsible for your API keys.</p>
-                    <p><strong>3. Bots:</strong> You are responsible for all bot parameters.</p>
-                    <p><strong>4. Payments:</strong> Subscriptions are non-refundable.</p>
-                    <p><strong>5. IP:</strong> Designs are property of BT Systems.</p>
-                    <p><strong>6. Liability:</strong> We are not liable for financial losses.</p>
+                  <p style={{ fontWeight: 'bold', color: 'white', fontSize: '1rem', borderBottom: '1px solid #1e293b', pb: '5px' }}>TERMS OF SERVICE</p>
+                  <p style={{ fontSize: '0.65rem', color: '#64748b' }}>Effective Date: March 27, 2026</p>
+                  
+                  <p><strong>1. User Responsibility:</strong> You represent that you are of legal age and possess the technical competency to operate automated trading software. You are solely responsible for the configuration of all bot parameters, including but not limited to RSI thresholds, Stop Loss, and Take Profit levels.</p>
+                  
+                  <p><strong>2. API Credentials:</strong> You grant the System permission to execute trades on your behalf via API. You are responsible for maintaining the security of your API keys. BT Systems never stores "Withdrawal" permissions; you must ensure your API keys are restricted to "Trade" and "View" only.</p>
+                  
+                  <p><strong>3. Performance Fees:</strong> By using the platform, you agree to the 0.12% performance fee on all profitable trades. Failure to settle outstanding fees exceeding $50.00 will result in an automated "Hard Stop" of all active bot instances until the balance is cleared.</p>
+                  
+                  <p><strong>4. No Refund Policy:</strong> Due to the nature of digital credit and server resource allocation, all subscription payments and performance fee settlements are final and non-refundable.</p>
+                  
+                  <p><strong>5. Intellectual Property:</strong> The "Primitive Net" aesthetic, logic algorithms, and "cryptorent_platform" codebase are the exclusive property of the developer. Reverse engineering or unauthorized distribution is strictly prohibited.</p>
                 </>
               )}
               {activeModal === 'risk' && (
                 <>
-                    <p style={{ fontWeight: 'bold', color: '#ef4444' }}>IMPORTANT: Risk Disclosure</p>
-                    <p><strong>1. No Guarantees:</strong> Trading involves high risk.</p>
-                    <p><strong>2. Algorithmic Risks:</strong> Technical failures can occur.</p>
-                    <p><strong>3. Capital Loss:</strong> Only trade with money you can afford to lose.</p>
+                  <p style={{ fontWeight: 'bold', color: '#ef4444', fontSize: '1rem', borderBottom: '1px solid #450a0a' }}>CRITICAL RISK DISCLOSURE</p>
+                  
+                  <p><strong>1. Financial Loss:</strong> Trading cryptocurrencies involves substantial risk of loss and is not suitable for every investor. The valuation of cryptocurrencies may fluctuate significantly, and as a result, clients may lose more than their original investment.</p>
+                  
+                  <p><strong>2. Execution Risk:</strong> BT Systems is a middleware tool. We do not guarantee execution speeds. Market volatility, exchange downtime, or network latency may result in "Slippage," where trades are executed at a price different than the strategy's target.</p>
+                  
+                  <p><strong>3. Algorithmic Failure:</strong> You acknowledge that automated software is subject to "bugs," connection timeouts, and logic errors. BT Systems is provided "AS IS." We are not liable for losses caused by software malfunctions or incorrect parameter settings.</p>
+                  
+                  <p><strong>4. Regulatory Risk:</strong> It is your responsibility to ensure that automated trading is legal in your jurisdiction. BT Systems does not provide financial, legal, or tax advice.</p>
+                  
+                  <p style={{ color: '#f87171', fontWeight: 'bold' }}>NEVER trade money you cannot afford to lose entirely.</p>
                 </>
               )}
               {activeModal === 'info' && (
-                <>
-                    <p style={{ fontWeight: 'bold', color: 'white' }}>System Overview</p>
-                    <div style={{ margin: '15px 0', padding: '10px', border: '1px solid #22c55e', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.05)' }}>
-                      <p style={{ color: '#22c55e', fontWeight: 'bold', fontSize: '0.75rem', margin: '0 0 5px 0' }}>COMMISSIONS</p>
-                      <p style={{ fontSize: '0.7rem', margin: 0 }}>A 0.12% commission applies to profitable trades.</p>
-                    </div>
-                    <p><strong>Deployment:</strong> Define parameters to initialize instances.</p>
-                    <p><strong>Billing:</strong> Fees over $50.00 will suspend trading.</p>
-                </>
-              )}
+              <>
+                <p style={{ fontWeight: 'bold', color: 'white', fontSize: '1rem' }}>SYSTEM SPECIFICATIONS</p>
+                
+                <div style={{ margin: '15px 0', padding: '12px', border: '1px solid #3b82f6', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.05)' }}>
+                  <p style={{ color: '#3b82f6', fontWeight: 'bold', fontSize: '0.75rem', margin: '0 0 5px 0' }}>BILLING ARCHITECTURE</p>
+                  <ul style={{ margin: 0, paddingLeft: '15px', fontSize: '0.7rem' }}>
+                    <li>Monthly Subscription: Provides access to Engine Nodes.</li>
+                    <li>Performance Fee: 0.12% per winning trade, tracked in real-time.</li>
+                    <li>Threshold: Accounts with $50.00 in unpaid fees are locked to "View Only" mode.</li>
+                  </ul>
+                </div>
+
+                <p><strong>Engine Pulse:</strong> The "BT Engine" operates on a 60-second heartbeat. Strategy calculations (RSI, EMA) are refreshed once per minute per active instance.</p>
+                
+                <p><strong>Latency:</strong> All orders are routed via the CCXT library. Expected latency to exchange endpoints is 200ms–800ms depending on server load.</p>
+                
+                <p><strong>Data Retention:</strong> Execution ledgers are stored for 30 days. High-frequency JSON logs are rotated weekly to maintain server performance.</p>
+              </>
+            )}
             </div>
             <button 
               onClick={() => setActiveModal(null)}
