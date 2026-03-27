@@ -5,30 +5,34 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # --- 1. ENV LOADING ---
-# Load .env for local development. Railway will ignore this and use its own Dashboard Variables.
 load_dotenv() 
 
-# --- 2. DATABASE & MODULE IMPORTS ---
+# --- 2. DATABASE & MODEL IMPORTS ---
 from database import engine, Base
-from api import auth, bots, dashboard, trades, webhooks
-from core import billing 
+# IMPORTANT: You MUST import your models here. 
+# If your User model is in a file called models.py, import it like this:
+# from models import User 
+# If it's inside api/auth.py, ensure it's imported before create_all.
+from api.auth import User # Assuming User model is defined/imported in auth.py
 
-# Sync Database Tables
+# --- 3. SYNC DATABASE TABLES ---
+# This line now has "knowledge" of the User model and will create the table.
+print("Checking and creating database tables...")
 Base.metadata.create_all(bind=engine)
 
-# --- 3. APP INITIALIZATION ---
+# --- 4. APP INITIALIZATION ---
 app = FastAPI(title="CryptoRent Bot API")
 
-# --- 4. CORS CONFIGURATION (The "Gatekeeper") ---
-# We get the FRONTEND_URL from Railway's variables.
-# If it's not found (like on your local PC), it defaults to localhost:3000.
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+# --- 5. CORS CONFIGURATION ---
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:5173",
-    FRONTEND_URL,  # This allows your live Railway frontend to talk to this API
+    FRONTEND_URL,
+    # Adding the non-www or variations if Railway uses them
+    FRONTEND_URL.replace("https://", "http://"), 
 ]
 
 app.add_middleware(
@@ -40,8 +44,7 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# --- 5. SYSTEM DIAGNOSTICS ---
-# Added FRONTEND_URL check so you can verify it's pointing to the right place
+# --- 6. SYSTEM DIAGNOSTICS ---
 print("\n--- 🚀 SYSTEM CHECK ---")
 print(f"📡 API Mode:    {'PRODUCTION' if os.getenv('RAILWAY_ENVIRONMENT') else 'LOCAL'}")
 print(f"🌐 Frontend:    {FRONTEND_URL}")
@@ -50,7 +53,11 @@ print(f"🔐 JWT Secret:  {'✅' if os.getenv('JWT_SECRET') else '❌'}")
 print(f"💰 Price ID:    {'✅' if os.getenv('STRIPE_PRICE_ID') else '❌'}")
 print("-----------------------\n")
 
-# --- 6. ROUTER REGISTRATION ---
+# --- 7. ROUTER REGISTRATION ---
+# Imports are already done at the top, now we just include them
+from api import auth, bots, dashboard, trades, webhooks
+from core import billing 
+
 app.include_router(auth.router, prefix="/auth")
 app.include_router(bots.router)
 app.include_router(dashboard.router)
