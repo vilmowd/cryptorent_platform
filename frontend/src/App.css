@@ -273,31 +273,54 @@ body {
   }
 }
 
-/* Mobile-Specific Tweaks */
+/* --- REFINED MOBILE NAVBAR --- */
 @media (max-width: 650px) {
+  .navbar {
+    padding: 5px 0;
+    min-height: 60px;
+  }
+
   .nav-content {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row; /* Keep it a single row */
+    justify-content: center; /* Center the brand */
+    padding: 0 15px;
   }
 
+  /* Hide the action buttons and status pills in the top nav */
+  /* They are now redundant because of our Bottom Tab Bar */
   .nav-actions {
-    width: 100%;
-    justify-content: space-between;
-    padding-top: 10px;
-    border-top: 1px solid #1e293b;
+    display: none !important; 
   }
 
-  .user-status-group {
-    display: none; 
+  .brand {
+    gap: 10px;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .logo-box {
+    width: 30px;
+    height: 30px;
+    font-size: 0.8rem;
+  }
+
+  .brand-name {
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
+  .status-label-nav {
+    font-size: 7px; /* Tiny sub-label to keep it sleek */
   }
 
   .welcome-title {
-    font-size: 1.5rem !important;
+    font-size: 1.4rem !important;
+    text-align: center;
   }
-
-  .main-content {
-    padding: 15px;
-    padding-bottom: 90px; /* Space for the tab bar */
+  
+  .page-header {
+    text-align: center;
+    margin-bottom: 10px;
   }
 }
 
