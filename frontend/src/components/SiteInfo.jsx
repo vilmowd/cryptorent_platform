@@ -1,25 +1,42 @@
 import React, { useState, useEffect } from 'react';
 
 const SiteInfo = () => {
-  const [settings, setSettings] = useState({ highContrast: false, largeText: false, reducedMotion: false, grayscale: false });
+  const [settings, setSettings] = useState({ 
+    highContrast: false, 
+    largeText: false, 
+    reducedMotion: false, 
+    grayscale: false 
+  });
   const [hoverLabel, setHoverLabel] = useState("SYSTEM READY");
   const [activeModal, setActiveModal] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 650);
 
-  // Track window size for layout switching & Apply Accessibility Filters
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 650);
     window.addEventListener('resize', handleResize);
     
     const root = document.documentElement;
+    
+    // 1. Handle Filters (Grayscale / Contrast)
     const filters = [];
     if (settings.highContrast) filters.push('contrast(1.5) saturate(1.2)');
     if (settings.grayscale) filters.push('grayscale(1)');
-    
     document.body.style.filter = filters.length > 0 ? filters.join(' ') : 'none';
     
-    settings.largeText ? root.classList.add('accessible-large-text') : root.classList.remove('accessible-large-text');
-    settings.reducedMotion ? root.classList.add('accessible-reduced-motion') : root.classList.remove('accessible-reduced-motion');
+    // 2. Handle Text Size 
+    // IMPORTANT: Ensure your CSS uses 'rem' units for this to work globally
+    if (settings.largeText) {
+      root.classList.add('accessible-large-text');
+    } else {
+      root.classList.remove('accessible-large-text');
+    }
+
+    // 3. Handle Motion
+    if (settings.reducedMotion) {
+      root.classList.add('accessible-reduced-motion');
+    } else {
+      root.classList.remove('accessible-reduced-motion');
+    }
 
     return () => window.removeEventListener('resize', handleResize);
   }, [settings]);
@@ -33,10 +50,10 @@ const SiteInfo = () => {
       borderTop: '1px solid #1e293b', 
       background: '#020617', 
       color: '#64748b', 
-      fontSize: '0.7rem' 
+      fontSize: '0.75rem' // Used rem here for responsiveness
     }}>
       
-      {/* --- THE MODAL OVERLAY --- */}
+      {/* --- MODAL OVERLAY --- */}
       {activeModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
@@ -132,7 +149,6 @@ const SiteInfo = () => {
             <p style={{ margin: 0, fontSize: '0.65rem', color: hoverLabel === "SYSTEM READY" ? '#64748b' : '#22c55e' }}>{hoverLabel}</p>
           </div>
           
-          {/* Grid container with align-items center to stop stretching */}
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: 'repeat(2, 1fr)', 
@@ -150,7 +166,6 @@ const SiteInfo = () => {
   );
 };
 
-// Sub-component with fixed dimensions to prevent vertical warping
 const RoundBtn = ({ active, onClick, onHover }) => (
   <button 
     onClick={onClick} 
