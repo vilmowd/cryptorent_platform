@@ -100,12 +100,16 @@ const BotCard = ({ botId, onNavigate }) => {
   const saveSettings = async () => {
     try {
       const payload = {
+        // Ensure these keys match your FastAPI Pydantic model exactly!
         min_trade_price: Number(thresholds.min_trade_price),
         max_trade_price: Number(thresholds.max_trade_price),
         max_daily_loss: Number(thresholds.max_daily_loss),
-        bot_token: telegramData.bot_token,
-        chat_id: telegramData.chat_id
+        // Check if your backend uses 'telegram_bot_token' or just 'bot_token'
+        telegram_bot_token: telegramData.bot_token, 
+        telegram_chat_id: telegramData.chat_id
       };
+
+      console.log("Sending Payload:", payload); // Debugging line
 
       const res = await fetch(`${API_BASE_URL}/bots/${botId}/update-settings`, {
         method: 'PATCH',
@@ -115,13 +119,15 @@ const BotCard = ({ botId, onNavigate }) => {
 
       if (res.ok) {
         setIsEditing(false);
-        setTgStatus({ loading: false, valid: false, error: null });
-        triggerToast("Settings Saved Successfully");
-        fetchStats();
+        triggerToast("Settings Saved to DB");
+        await fetchStats(); // Force a re-fetch to confirm the DB has the data
+      } else {
+        const errorData = await res.json();
+        triggerToast(`Save Failed: ${errorData.detail || 'Unknown Error'}`);
       }
     } catch (error) {
       console.error("Update failed:", error);
-      triggerToast("Failed to save settings");
+      triggerToast("Network Error: Check Console");
     }
   };
 

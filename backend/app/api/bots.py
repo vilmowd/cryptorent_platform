@@ -71,7 +71,15 @@ async def get_bot_stats(bot_id: int, db: Session = Depends(get_db), current_user
         "daily_pnl": f"${bot.daily_pnl:,.2f}",
         "current_price": price,
         "rsi_value": rsi,
-        "last_sync": bot.updated_at.isoformat() if bot.updated_at else None, # Heartbeat
+        "last_sync": bot.updated_at.isoformat() if bot.updated_at else None,
+        
+        # --- ADD THESE MISSING FIELDS ---
+        "min_trade_price": bot.min_trade_price,
+        "max_trade_price": bot.max_trade_price,
+        "max_daily_loss": bot.max_daily_loss,
+        "telegram_bot_token": bot.telegram_bot_token,
+        "telegram_chat_id": bot.telegram_chat_id,
+        
         "decision_factors": {
             "is_trend_ok": price > ema200 if price and ema200 else False,
             "is_rsi_pullback": bot.rsi_low < rsi < bot.rsi_high if rsi else False,
