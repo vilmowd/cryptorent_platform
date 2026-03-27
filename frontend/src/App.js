@@ -74,6 +74,7 @@ function App() {
       if (botsRes.ok) {
         const botsData = await botsRes.json();
         setUserBots(botsData);
+        // Default to first bot if none selected
         if (botsData.length > 0 && !selectedBotId) setSelectedBotId(botsData[0].id);
       }
     } catch (err) {
@@ -84,10 +85,11 @@ function App() {
   };
 
   const navigateTo = (path, botId = null) => {
-    window.history.pushState({}, '', path);
+    // If the path is 'analytics', we don't necessarily need a URL change if it's an overlay
+    // but for your setup, we'll treat it as a virtual path
     setCurrentPath(path);
     if (botId) setSelectedBotId(botId);
-    window.scrollTo(0, 0); // Reset scroll when navigating
+    window.scrollTo(0, 0);
   };
 
   useEffect(() => {
@@ -163,12 +165,22 @@ function App() {
       </nav>
 
       <main className="main-content">
+        {/* --- VIEW ROUTER --- */}
         {currentPath === '/billing' ? (
           <div className="billing-view-container">
             <BillingDetails user={userData} />
             <button onClick={() => navigateTo('/')} className="btn-logout" style={{marginTop: '20px'}}>← Back to Command Center</button>
           </div>
+        ) : currentPath === 'analytics' ? (
+          /* --- ANALYTICS VIEW --- */
+          <div className="analytics-view-full">
+             <BotAnalytics 
+               botId={selectedBotId} 
+               onBack={() => navigateTo('/')} 
+             />
+          </div>
         ) : (
+          /* --- DASHBOARD VIEW --- */
           <>
             <header className="page-header">
               <h1 className="welcome-title">Command Center</h1>
@@ -181,7 +193,11 @@ function App() {
                   <span className="status-label">Active Instances</span>
                   <div className="bot-list-container">
                     {userBots.length > 0 ? userBots.map(bot => (
-                      <BotCard key={bot.id} botId={bot.id} onNavigate={(path, id) => navigateTo(path, id)} />
+                      <BotCard 
+                        key={bot.id} 
+                        botId={bot.id} 
+                        onNavigate={(path, id) => navigateTo(path, id)} 
+                      />
                     )) 
                     : <div className="empty-bot-state"><p className="status-label">No Bots Detected</p></div>}
                   </div>
