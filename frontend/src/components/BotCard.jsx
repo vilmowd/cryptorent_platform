@@ -38,6 +38,7 @@ const BotCard = ({ botId, onNavigate }) => {
         const data = await response.json();
         setBot(data);
         
+        // Sync local form state only if we aren't currently typing
         if (!isEditing) {
           setThresholds({
             min_trade_price: data.min_trade_price || 0,
@@ -45,15 +46,16 @@ const BotCard = ({ botId, onNavigate }) => {
             max_daily_loss: data.max_daily_loss || 0
           });
           setTelegramData({
-            bot_token: data.bot_token || '',
-            chat_id: data.chat_id || ''
+            bot_token: data.telegram_bot_token || '',
+            chat_id: data.telegram_chat_id || ''
           });
         }
         
-        if (data.is_running && data.updated_at) {
-          const lastUpdate = new Date(data.updated_at);
+        // STALL CHECK: Uses the last_sync heartbeat from FastAPI
+        if (data.is_running && data.last_sync) {
+          const lastUpdate = new Date(data.last_sync);
           const secondsAgo = (new Date() - lastUpdate) / 1000;
-          setIsStalled(secondsAgo > 120); 
+          setIsStalled(secondsAgo > 120); // Stalled if no engine pulse for 2 mins
         } else {
           setIsStalled(false);
         }
@@ -67,34 +69,31 @@ const BotCard = ({ botId, onNavigate }) => {
 
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 5000); 
+    const interval = setInterval(fetchStats, 10000); // Polling every 10s is safer
     return () => clearInterval(interval);
   }, [fetchStats]);
 
-  const validateTelegram = async () => {
-    setTgStatus({ loading: true, valid: false, error: null });
-    try {
-      const res = await fetch(`https://api.telegram.org/bot${telegramData.bot_token}/getChat?chat_id=${telegramData.chat_id}`);
-      const data = await res.json();
-      if (data.ok) {
-        setTgStatus({ loading: false, valid: true, error: null });
-      } else {
-        setTgStatus({ loading: false, valid: false, error: data.description });
-      }
-    } catch (err) {
-      setTgStatus({ loading: false, valid: false, error: "Connection Failed" });
-    }
-  };
-
+  // FIX: Only send the specific settings, NEVER the indicators
   const saveSettings = async () => {
     try {
-      await fetch(`${API_BASE_URL}/bots/${botId}/update-settings`, {
+      const payload = {
+        min_trade_price: Number(thresholds.min_trade_price),
+        max_trade_price: Number(thresholds.max_trade_price),
+        max_daily_loss: Number(thresholds.max_daily_loss),
+        bot_token: telegramData.bot_token,
+        chat_id: telegramData.chat_id
+      };
+
+      const res = await fetch(`${API_BASE_URL}/bots/${botId}/update-settings`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ ...thresholds, ...telegramData })
+        body: JSON.stringify(payload)
       });
-      setIsEditing(false);
-      await fetchStats();
+
+      if (res.ok) {
+        setIsEditing(false);
+        fetchStats();
+      }
     } catch (error) {
       console.error("Update failed:", error);
     }
@@ -107,33 +106,33 @@ const BotCard = ({ botId, onNavigate }) => {
         headers: getAuthHeaders()
       });
       if (response.status === 402) return onNavigate('/billing');
-      await fetchStats(); 
+      fetchStats(); 
     } catch (error) {
       console.error("Toggle action failed:", error);
     }
   };
 
-  if (loading) return <div className="bot-card loading">Initializing...</div>;
+  if (loading) return <div className="bot-card loading">INITIALIZING...</div>;
 
   return (
     <div className={`bot-card ${isStalled ? 'stalled-border' : ''}`}>
       <div className="card-header">
         <div>
           <h2 className="pair-title">{bot.symbol}</h2>
-          <span className="text-xs text-slate-500">ID: {bot.id}</span>
+          <span className="text-[9px] text-slate-500 font-mono">B-ID: {bot.id.toString().padStart(4, '0')}</span>
         </div>
         <div className="flex flex-col items-end">
           <span className={`status-badge ${bot.is_running ? (isStalled ? 'stalled' : 'active') : 'stopped'}`}>
             {isStalled ? '● STALLED' : (bot.is_running ? '● LIVE' : '○ STOPPED')}
           </span>
+          {isStalled && <span className="text-[8px] color-[#ef4444] animate-pulse">ENGINE UNRESPONSIVE</span>}
         </div>
       </div>
 
       <div className="stats-list">
-        {/* CONDITIONALLY RENDER ANALYTICS: Only shows when bot is running */}
         {bot.is_running && (
           <button 
-            className="analytics-trigger-btn animate-pulse-slow"
+            className="analytics-trigger-btn"
             onClick={() => onNavigate('analytics', botId)}
           >
             <span className="icon">⚡</span> 
@@ -144,15 +143,15 @@ const BotCard = ({ botId, onNavigate }) => {
 
         <div className="safety-grid">
           <div className="safety-header">
-            <span className="label text-[10px] uppercase font-bold">Safety & Alerts</span>
+            <span className="label text-[10px] uppercase font-bold tracking-widest text-slate-400">Safety Parameters</span>
             <button className="edit-btn" onClick={() => isEditing ? saveSettings() : setIsEditing(true)}>
-              {isEditing ? 'SAVE' : 'EDIT'}
+              {isEditing ? 'CONFIRM' : 'EDIT'}
             </button>
           </div>
           
           <div className="safety-inputs">
             <div className="input-group">
-              <label>Min $</label>
+              <label>Floor Price</label>
               <input 
                 type="number" 
                 disabled={!isEditing} 
@@ -160,45 +159,42 @@ const BotCard = ({ botId, onNavigate }) => {
                 onChange={(e) => setThresholds({...thresholds, min_trade_price: e.target.value})} 
               />
             </div>
-            {/* ... other threshold inputs ... */}
+            <div className="input-group">
+              <label>Daily Stop</label>
+              <input 
+                type="number" 
+                disabled={!isEditing} 
+                value={thresholds.max_daily_loss} 
+                onChange={(e) => setThresholds({...thresholds, max_daily_loss: e.target.value})} 
+              />
+            </div>
           </div>
 
           <button 
             className="tg-toggle-btn"
             onClick={() => setShowTelegram(!showTelegram)}
           >
-            {showTelegram ? '▲ Hide Telegram' : '▼ Setup Telegram Alerts'}
+            {showTelegram ? '▲ Hide Alerts' : '▼ Telegram Alerts'}
           </button>
 
           {showTelegram && (
             <div className="telegram-section">
-              <div className="input-group-full">
-                <label>Bot Token</label>
-                <input 
-                  type="password"
-                  placeholder="Enter BotFather Token"
-                  disabled={!isEditing}
-                  value={telegramData.bot_token}
-                  onChange={(e) => setTelegramData({...telegramData, bot_token: e.target.value})}
-                />
-              </div>
-              <div className="input-group-full">
-                <label>Chat ID</label>
-                <input 
-                  type="text"
-                  placeholder="Your Chat ID"
-                  disabled={!isEditing}
-                  value={telegramData.chat_id}
-                  onChange={(e) => setTelegramData({...telegramData, chat_id: e.target.value})}
-                />
-              </div>
-              {isEditing && (
-                <button className="validate-btn" onClick={validateTelegram} disabled={tgStatus.loading}>
-                  {tgStatus.loading ? 'CHECKING...' : 'TEST CONNECTION'}
-                </button>
-              )}
-              {tgStatus.valid && <p className="text-green-400 text-[10px] mt-1">✓ Connection Valid!</p>}
-              {tgStatus.error && <p className="text-red-400 text-[10px] mt-1">✗ {tgStatus.error}</p>}
+              <input 
+                type="password"
+                placeholder="Bot Token"
+                className="tg-input"
+                disabled={!isEditing}
+                value={telegramData.bot_token}
+                onChange={(e) => setTelegramData({...telegramData, bot_token: e.target.value})}
+              />
+              <input 
+                type="text"
+                placeholder="Chat ID"
+                className="tg-input"
+                disabled={!isEditing}
+                value={telegramData.chat_id}
+                onChange={(e) => setTelegramData({...telegramData, chat_id: e.target.value})}
+              />
             </div>
           )}
         </div>
@@ -206,7 +202,7 @@ const BotCard = ({ botId, onNavigate }) => {
 
       <div className="card-actions">
         <button onClick={toggleBot} className={`power-button ${bot.is_running ? 'stop' : 'start'}`}>
-          {bot.is_running ? 'STOP ENGINE' : 'START ENGINE'}
+          {bot.is_running ? 'SHUTDOWN ENGINE' : 'INITIALIZE ENGINE'}
         </button>
       </div>
     </div>
