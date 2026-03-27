@@ -5,8 +5,10 @@ import os
 import requests
 import traceback
 from datetime import datetime, timezone, date
+from sqlalchemy import func
 from app.utils.exchange_factory import initialize_exchange 
 from models.trade import Trade 
+from models.bot import BotInstance
 
 # Define local log file path
 ERROR_LOG = "error_log.txt"
@@ -22,10 +24,10 @@ class StrategyManager:
 
     def send_telegram_msg(self, message):
         """Sends a notification to Telegram using bot-specific credentials."""
+        # Use the latest credentials from the refreshed bot object
         token = self.bot.telegram_bot_token
         chat_id = self.bot.telegram_chat_id
 
-        # Robust check: Ensure token/ID aren't None or just empty whitespace strings
         if not token or not chat_id or str(token).strip() == "" or str(chat_id).strip() == "":
             return
 
@@ -54,7 +56,6 @@ class StrategyManager:
         except Exception as file_err:
             print(f"Could not write to log file: {file_err}")
         
-        # Notify Telegram with a clean message
         self.send_telegram_msg(f"⚠️ <b>BOT ERROR ({self.bot.symbol}):</b>\n<code>{error_msg}</code>")
 
     # --- CORE EXECUTION LOGIC ---
@@ -87,14 +88,11 @@ class StrategyManager:
                 self.bot.in_position = False
                 self.bot.daily_pnl += pnl
                 
-                # Performance Fee Logic
                 if pnl > 0:
                     commission = pnl * 0.0012
-                    # Use getattr/setattr or ensure owner object is loaded to avoid NoneType errors
                     if self.bot.owner:
                         self.bot.owner.unpaid_fees = (self.bot.owner.unpaid_fees or 0) + commission
                 
-                # Risk Streak logic
                 if pnl < 0:
                     self.bot.consecutive_losses += 1
                     self.bot.last_loss_time = datetime.now(timezone.utc)
@@ -139,11 +137,9 @@ class StrategyManager:
             json.dump(history[:30], f, indent=4)
 
     def get_data(self):
-        # Increased timeout in exchange call to prevent engine stall
         bars = self.exchange.fetch_ohlcv(self.bot.symbol, timeframe='5m', limit=300)
         df = pd.DataFrame(bars, columns=['time','open','high','low','close','vol'])
         
-        # Technicals
         df['ema_200'] = df['close'].ewm(span=200).mean()
         df['ema_20'] = df['close'].ewm(span=20).mean()
         
@@ -182,7 +178,6 @@ class StrategyManager:
     def calculate_dynamic_size(self, price, atr):
         try:
             balance_data = self.exchange.fetch_balance()
-            # Handle different exchange naming (USDT vs USD)
             usd_balance = balance_data['total'].get('USDT', balance_data['total'].get('USD', 0))
             risk_amount = usd_balance * 0.01 
             size = risk_amount / atr if atr > 0 else 10 / price
@@ -193,42 +188,39 @@ class StrategyManager:
     def run_tick(self):
         """Main loop executed by the Engine."""
         try:
-            # 1. FORCE REFRESH FROM DB
+            # 1. HOT RELOAD: Expire local cache and pull latest data from DB
+            # This ensures we see changes from the React dashboard immediately
             self.db.expire(self.bot)
             self.db.refresh(self.bot)
 
-            # --- STARTUP ALERT LOGIC ---
-            # If updated_at is None, this is the very first tick since the bot was toggled ON
+            # 2. STARTUP ALERT LOGIC
             if self.bot.updated_at is None:
                 startup_msg = (
                     f"🤖 <b>{self.bot.symbol} Strategy Initialized</b>\n"
                     f"────────────────────\n"
                     f"🟢 <b>Status:</b> Monitoring Live Market\n"
-                    f"📈 <b>Trend:</b> EMA 200 Filter Active\n"
-                    f"🛡️ <b>Safety:</b> Floor ${self.bot.min_trade_price:,.2f} | Ceiling ${self.bot.max_trade_price:,.2f}\n"
+                    f"🛡️ <b>Safety:</b> Floor ${self.bot.min_trade_price:,.2f} | Daily Stop ${self.bot.max_daily_loss:,.2f}\n"
                     f"────────────────────\n"
-                    f"<i>Checking for trade signals...</i>"
+                    f"<i>Hot-Reload Active: Engine will pick up settings updates in real-time.</i>"
                 )
                 self.send_telegram_msg(startup_msg)
-            # ---------------------------
 
-            # 2. HEARTBEAT & SYNC
-            # We update 'updated_at' now so the Startup Alert only fires ONCE.
+            # 3. HEARTBEAT: Update 'updated_at' so UI knows the bot is alive
             self.bot.updated_at = datetime.now(timezone.utc)
             self.db.commit()
             
-            # 3. FETCH MARKET DATA
+            # 4. FETCH MARKET DATA
             data = self.get_data()
             price = float(data['close'])
             
-            # 4. SYNC LIVE STATS TO DB
+            # 5. SYNC LIVE STATS TO DB (Visible in Analytics Terminal)
             self.bot.last_known_price = price
             self.bot.last_rsi = float(data['rsi'])
             self.bot.last_ema_200 = float(data['ema_200'])
             self.bot.last_ema_20 = float(data['ema_20'])
             self.db.commit()
 
-            # 5. GUARDRAILS
+            # 6. GUARDRAILS: Uses the latest values from the UI
             if not self.bot.in_position:
                 if self.bot.min_trade_price and price < self.bot.min_trade_price:
                     return
@@ -237,11 +229,9 @@ class StrategyManager:
 
             blocked_reason = self.check_risk_controls()
             if blocked_reason and not self.bot.in_position:
-                # Optionally notify Telegram if blocked by risk controls
-                # self.send_telegram_msg(f"⚠️ {self.bot.symbol} Trading paused: {blocked_reason}")
                 return
 
-            # 6. STRATEGY LOGIC
+            # 7. STRATEGY LOGIC
             trend_ok = price > data['ema_200']
             pullback_ok = 30 < data['rsi'] < 65 
             near_ema_ok = price <= data['ema_20'] * 1.001

@@ -47,7 +47,6 @@ const BotCard = ({ botId, onNavigate }) => {
         const data = await response.json();
         setBot(data);
         
-        // Sync inputs with DB only when NOT editing
         if (!isEditing) {
           setThresholds({
             min_trade_price: data.min_trade_price ?? 0,
@@ -55,6 +54,7 @@ const BotCard = ({ botId, onNavigate }) => {
             max_daily_loss: data.max_daily_loss ?? 0
           });
           setTelegramData({
+            // Make sure these keys match the keys in the Python return statement above!
             bot_token: data.telegram_bot_token || '', 
             chat_id: data.telegram_chat_id || ''
           });
