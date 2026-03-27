@@ -26,11 +26,12 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"], # Must allow 'Authorization'
 )
+
 
 # --- 5. ROUTER REGISTRATION ---
 # Note: Ensure these paths match your folder structure (backend/app/api/...)
