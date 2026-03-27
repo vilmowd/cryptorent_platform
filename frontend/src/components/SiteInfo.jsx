@@ -6,7 +6,7 @@ const SiteInfo = () => {
   const [activeModal, setActiveModal] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 650);
 
-  // Track window size for layout switching
+  // Track window size for layout switching & Apply Accessibility Filters
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 650);
     window.addEventListener('resize', handleResize);
@@ -15,7 +15,9 @@ const SiteInfo = () => {
     const filters = [];
     if (settings.highContrast) filters.push('contrast(1.5) saturate(1.2)');
     if (settings.grayscale) filters.push('grayscale(1)');
+    
     document.body.style.filter = filters.length > 0 ? filters.join(' ') : 'none';
+    
     settings.largeText ? root.classList.add('accessible-large-text') : root.classList.remove('accessible-large-text');
     settings.reducedMotion ? root.classList.add('accessible-reduced-motion') : root.classList.remove('accessible-reduced-motion');
 
@@ -27,7 +29,7 @@ const SiteInfo = () => {
   return (
     <footer style={{ 
       marginTop: '30px', 
-      padding: isMobile ? '20px 15px 100px 15px' : '12px 20px', // Extra bottom padding for mobile tab bar
+      padding: isMobile ? '20px 15px 100px 15px' : '12px 20px', 
       borderTop: '1px solid #1e293b', 
       background: '#020617', 
       color: '#64748b', 
@@ -83,7 +85,7 @@ const SiteInfo = () => {
             </div>
             <button 
               onClick={() => setActiveModal(null)}
-              style={{ marginTop: '20px', width: '100%', padding: '12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}
+              style={{ marginTop: '20px', width: '100%', padding: '12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
             >
               CLOSE
             </button>
@@ -91,6 +93,7 @@ const SiteInfo = () => {
         </div>
       )}
 
+      {/* --- FOOTER MAIN CONTENT --- */}
       <div style={{ 
         display: 'flex', 
         flexDirection: isMobile ? 'column' : 'row', 
@@ -128,7 +131,14 @@ const SiteInfo = () => {
             <p style={{ margin: 0, fontSize: '0.55rem', color: '#475569', fontWeight: 'bold' }}>ACCESS OPS</p>
             <p style={{ margin: 0, fontSize: '0.65rem', color: hoverLabel === "SYSTEM READY" ? '#64748b' : '#22c55e' }}>{hoverLabel}</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+          
+          {/* Grid container with align-items center to stop stretching */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(2, 1fr)', 
+            gap: '8px',
+            alignItems: 'center' 
+          }}>
             <RoundBtn active={settings.highContrast} onClick={() => toggle('highContrast')} onHover={() => setHoverLabel("CONTRAST")} />
             <RoundBtn active={settings.largeText} onClick={() => toggle('largeText')} onHover={() => setHoverLabel("TEXT SIZE")} />
             <RoundBtn active={settings.grayscale} onClick={() => toggle('grayscale')} onHover={() => setHoverLabel("MONO")} />
@@ -140,14 +150,25 @@ const SiteInfo = () => {
   );
 };
 
+// Sub-component with fixed dimensions to prevent vertical warping
 const RoundBtn = ({ active, onClick, onHover }) => (
   <button 
-    onClick={onClick} onMouseEnter={onHover}
+    onClick={onClick} 
+    onMouseEnter={onHover}
+    onMouseLeave={(e) => e.currentTarget.blur()}
     style={{ 
-      width: '14px', height: '14px', borderRadius: '50%', 
-      border: '1px solid #334155', background: active ? '#22c55e' : 'transparent', 
+      width: '14px', 
+      height: '14px', 
+      minWidth: '14px', 
+      minHeight: '14px',
+      borderRadius: '50%', 
+      border: '1px solid #334155', 
+      background: active ? '#22c55e' : 'transparent', 
       boxShadow: active ? '0 0 10px rgba(34, 197, 94, 0.4)' : 'none', 
-      cursor: 'pointer', padding: 0 
+      cursor: 'pointer', 
+      padding: 0,
+      display: 'block',
+      transition: 'all 0.2s ease'
     }}
   />
 );

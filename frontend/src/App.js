@@ -212,6 +212,30 @@ function App() {
       </main>
 
       <SiteInfo />
+
+      {/* --- MOBILE BOTTOM NAVIGATION --- */}
+      <footer className="mobile-tab-bar">
+        <button 
+          className={`tab-item ${currentPath === '/' ? 'active' : ''}`} 
+          onClick={() => navigateTo('/')}
+        >
+          <span className="tab-icon"></span>
+          <span className="tab-label">Command</span>
+        </button>
+        
+        <button 
+          className={`tab-item ${currentPath === '/billing' ? 'active' : ''}`} 
+          onClick={() => navigateTo('/billing')}
+        >
+          <span className="tab-icon"></span>
+          <span className="tab-label">Billing</span>
+        </button>
+        
+        <button className="tab-item" onClick={handleLogout}>
+          <span className="tab-icon"></span>
+          <span className="tab-label">Log Out</span>
+        </button>
+      </footer>
     </div>
   );
 }

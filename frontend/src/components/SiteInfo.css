@@ -1,0 +1,124 @@
+/* Container and Layout */
+.site-footer {
+  margin-top: 30px;
+  border-top: 1px solid #1e293b;
+  background: #020617;
+  color: #64748b;
+  font-size: 0.7rem;
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.footer-left {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.legal-links {
+  display: flex;
+  gap: 15px;
+  border-left: 1px solid #1e293b;
+  padding-left: 20px;
+}
+
+.legal-link {
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.legal-link:hover {
+  color: #f8fafc;
+}
+
+/* Accessibility HUD */
+.access-hud {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.access-label-group {
+  text-align: right;
+  border-right: 2px solid #1e293b;
+  padding-right: 15px;
+}
+
+.access-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  align-items: center; 
+}
+
+/* The Fixed Round Buttons */
+.round-btn {
+  width: 14px;
+  height: 14px;
+  min-width: 14px; /* Hard lock dimensions */
+  min-height: 14px;
+  aspect-ratio: 1 / 1; 
+  border-radius: 50%;
+  border: 1px solid #334155;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+  display: block; 
+}
+
+.round-btn.active {
+  background: #22c55e;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.6);
+  border-color: #4ade80;
+  animation: status-pulse 2s infinite;
+}
+
+@keyframes status-pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* --- GLOBAL ACCESSIBILITY STATES --- */
+/* These logic classes are applied to the <html> tag by your React code */
+
+.accessible-large-text {
+  font-size: 115% !important; /* Scales everything relatively */
+}
+
+.accessible-reduced-motion * {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Mobile Overrides */
+@media (max-width: 650px) {
+  .footer-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 25px;
+  }
+  
+  .footer-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .legal-links {
+    border-left: none;
+    padding-left: 0;
+    gap: 20px; /* Wider touch targets for fingers */
+  }
+  
+  .access-hud {
+    width: 100%;
+    justify-content: space-between; /* Pushes HUD to the right on phone */
+  }
+}
