@@ -19,23 +19,34 @@ async def handle_webhook(request: Request, db: Session = Depends(get_db)):
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
     except Exception as e:
-        return {"error": str(e)}
+        # CRITICAL: Stripe needs a 400 error to know the signature failed
+        from fastapi import HTTPException
+        print(f"⚠️ Webhook signature failed: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
-    # When the checkout is finished successfully
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-        customer_id = session.get("customer")
         
-        # 1. Find the user by Stripe Customer ID
-        user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
+        # USE THIS INSTEAD: Find user by the ID we sent to Stripe
+        user_id = session.get("client_reference_id")
+        stripe_cust_id = session.get("customer")
         
-        if user:
-            # 2. Activate them and set the 2-month (60 days) expiry
-            user.is_subscription_active = True
-            user.subscription_expires_at = datetime.utcnow() + timedelta(days=60)
-            user.unpaid_fees = 0.0
+        if user_id:
+            user = db.query(User).filter(User.id == int(user_id)).first()
             
-            db.commit()
-            print(f"User {user.email} is now ACTIVE for 30 days.")
+            if user:
+                # Update user with the new Stripe info
+                user.stripe_customer_id = stripe_cust_id
+                user.is_subscription_active = True
+                # Using datetime.now() since utcnow is being phased out
+                user.subscription_expires_at = datetime.now() + timedelta(days=60)
+                user.unpaid_fees = 0.0
+                
+                db.commit()
+                print(f"✅ User {user.email} is now ACTIVE for 60 days.")
+            else:
+                print(f"❌ User ID {user_id} not found in database.")
+        else:
+            print("❌ No client_reference_id found in Stripe session.")
 
     return {"status": "success"}

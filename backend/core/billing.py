@@ -43,7 +43,6 @@ async def create_checkout(
     db: Session = Depends(get_db), 
     current_user: User = Depends(get_current_user)
 ):
-    """Initializes the monthly subscription + metered commission plan."""
     current_user = db.merge(current_user) 
     price_id = os.getenv("STRIPE_PRICE_ID") 
 
@@ -52,24 +51,25 @@ async def create_checkout(
         if not current_user.stripe_customer_id:
             customer = stripe.Customer.create(
                 email=current_user.email,
-                description=f"User ID: {current_user.id}"
+                metadata={"user_id": current_user.id}
             )
             current_user.stripe_customer_id = customer.id
             db.commit()
 
         session = stripe.checkout.Session.create(
             customer=current_user.stripe_customer_id,
+            client_reference_id=str(current_user.id), # <--- ADD THIS LINE
             payment_method_types=['card'],
             line_items=[{'price': price_id, 'quantity': 1}],
             mode='subscription',
-            success_url=f"{SITE_URL}/?payment=success", # UPDATED: Dynamic URL
-            cancel_url=f"{SITE_URL}/billing",           # UPDATED: Dynamic URL
+            success_url=f"{SITE_URL}/?payment=success",
+            cancel_url=f"{SITE_URL}/billing",
         )
         return {"url": session.url}
     except Exception as e:
         print(f"STRIPE ERROR: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
+    
 # --- THE WEBHOOK RECEIVER (THE ENFORCER) ---
 @router.post("/stripe-webhook")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
@@ -81,23 +81,27 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
     except Exception as e:
-        return {"error": "Invalid signature"}, 400
+        # Return a 400 so Stripe knows the signature was bad
+        raise HTTPException(status_code=400, detail="Invalid signature")
 
     # 1. SUCCESSFUL SIGNUP
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        customer_id = session.get('customer')
-        user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
         
-        if user:
-            user.is_subscription_active = True
-            user.subscription_expires_at = datetime.now(timezone.utc) + timedelta(days=30)
-            user.unpaid_fees = 0.0 
-            user.has_outstanding_debt = False
-            db.commit()
-            print(f"✅ User {user.email} ACTIVATED via Webhook.")
+        # FIND USER BY THE ID WE PASSED IN CHECKOUT
+        user_id = session.get('client_reference_id')
+        
+        if user_id:
+            user = db.query(User).filter(User.id == int(user_id)).first()
+            if user:
+                user.is_subscription_active = True
+                user.stripe_customer_id = session.get('customer') # Ensure ID is saved
+                user.subscription_expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+                user.unpaid_fees = 0.0 
+                db.commit()
+                print(f"✅ User {user.email} ACTIVATED.")
 
-    # 2. MONTHLY RENEWAL / COMMISSION INVOICE PAID
+    # 2. MONTHLY RENEWAL (Uses customer_id because it's already established)
     elif event['type'] == 'invoice.paid':
         invoice = event['data']['object']
         customer_id = invoice.get('customer')
@@ -105,32 +109,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         
         if user:
             user.is_subscription_active = True
-            user.unpaid_fees = 0.0  
-            user.has_outstanding_debt = False
             user.subscription_expires_at = datetime.now(timezone.utc) + timedelta(days=30)
             db.commit()
-            print(f"💰 Renewal/Commissions Paid for {user.email}.")
-
-    # 3. PAYMENT FAILED OR SUBSCRIPTION DELETED
-    elif event['type'] in ['invoice.payment_failed', 'customer.subscription.deleted']:
-        data_obj = event['data']['object']
-        customer_id = data_obj.get('customer')
-        user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
-        
-        if user:
-            user.is_subscription_active = False
-            user.has_outstanding_debt = True
-            
-            # IMMEDIATELY SHUT DOWN BOTS
-            db.query(BotInstance).filter(
-                BotInstance.user_id == user.id,
-                BotInstance.is_running == True
-            ).update({
-                "is_running": False, 
-                "updated_at": datetime.now(timezone.utc)
-            }, synchronize_session=False)
-            
-            db.commit()
-            print(f"🛑 DEACTIVATED: {user.email} due to payment issue.")
 
     return {"status": "success"}

@@ -197,3 +197,102 @@ logic-grid { display: flex; gap: 5px; margin-top: 10px; }
 .logic-tag.pass { border-color: #00ff88; color: #00ff88; background: #004422; }
 .stalled { background: #ff4444 !important; color: white !important; }
 .stalled-border { border: 1px solid #ff4444 !important; }
+
+
+/* Telegram Section Container */
+.telegram-section {
+  background: rgba(0, 136, 204, 0.05); /* Very light Telegram blue */
+  border: 1px border-solid rgba(0, 136, 204, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: slideDown 0.3s ease-out;
+}
+
+/* Grouping for labels and inputs */
+.input-group-full {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.input-group-full label {
+  font-size: 10px;
+  font-weight: bold;
+  color: #0088cc; /* Telegram Blue */
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.input-group-full input {
+  background: #1a1f2e;
+  border: 1px solid #2d3748;
+  border-radius: 4px;
+  padding: 8px;
+  color: white;
+  font-size: 12px;
+  transition: border-color 0.2s;
+}
+
+.input-group-full input:focus {
+  outline: none;
+  border-color: #0088cc;
+}
+
+.input-group-full input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+
+/* Buttons */
+.tg-toggle-btn {
+  background: transparent;
+  border: none;
+  color: #a0aec0;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 5px;
+  text-align: left;
+  transition: color 0.2s;
+}
+
+.tg-toggle-btn:hover {
+  color: #0088cc;
+}
+
+.validate-btn {
+  background: #0088cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 5px;
+  transition: transform 0.1s, background 0.2s;
+}
+
+.validate-btn:hover:not(:disabled) {
+  background: #0077b5;
+  transform: translateY(-1px);
+}
+
+.validate-btn:active {
+  transform: translateY(0);
+}
+
+.validate-btn:disabled {
+  background: #4a5568;
+  cursor: wait;
+}
+
+/* Animations */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
