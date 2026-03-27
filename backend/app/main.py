@@ -20,6 +20,8 @@ origins = [
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     FRONTEND_URL,
+    "https://cryptocommandcenter.net",                          # NEW DOMAIN
+    "https://www.cryptocommandcenter.net"
 ]
 
 app.add_middleware(
