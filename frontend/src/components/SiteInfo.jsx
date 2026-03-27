@@ -168,9 +168,13 @@ const SiteInfo = () => {
 
 const RoundBtn = ({ active, onClick, onHover }) => (
   <button 
+    // This line is the key: it adds the 'active' class from your CSS
+    className={`round-btn ${active ? 'active' : ''}`}
     onClick={onClick} 
     onMouseEnter={onHover}
     onMouseLeave={(e) => e.currentTarget.blur()}
+    /* Remove the inline 'background' and 'boxShadow' styles here 
+       so they don't override the CSS file */
     style={{ 
       width: '14px', 
       height: '14px', 
@@ -178,8 +182,6 @@ const RoundBtn = ({ active, onClick, onHover }) => (
       minHeight: '14px',
       borderRadius: '50%', 
       border: '1px solid #334155', 
-      background: active ? '#22c55e' : 'transparent', 
-      boxShadow: active ? '0 0 10px rgba(34, 197, 94, 0.4)' : 'none', 
       cursor: 'pointer', 
       padding: 0,
       display: 'block',

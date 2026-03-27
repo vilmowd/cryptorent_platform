@@ -1,10 +1,38 @@
+/* --- GLOBAL SCALING & ACCESSIBILITY LOGIC --- */
+:root {
+  --site-scale: 1; /* Default scale */
+}
+
+html {
+  /* This calculation forces the base '1rem' to be reactive */
+  font-size: calc(16px * var(--site-scale)) !important;
+  transition: font-size 0.25s ease-out; /* Smooth transition when scaling */
+}
+
+/* This class is toggled by your React SiteInfo component */
+html.accessible-large-text {
+  --site-scale: 1.25; 
+}
+
+/* Reduced Motion logic */
+html.accessible-reduced-motion *,
+html.accessible-reduced-motion *::before,
+html.accessible-reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
 /* --- GLOBAL & BODY --- */
 body {
   margin: 0;
   background-color: #020617; 
   color: #f8fafc;
   font-family: 'Inter', -apple-system, sans-serif;
-  overflow-x: hidden; 
+  overflow-x: hidden;
+  font-size: 1rem; /* Body inherits the master scale */
+  line-height: 1.5;
 }
 
 .dashboard-container {
@@ -90,7 +118,7 @@ body {
 
 .brand-name {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.1rem; /* Scales with root */
   color: #f8fafc;
 }
 
@@ -118,14 +146,14 @@ body {
 }
 
 .status-label-nav {
-  font-size: 9px;
+  font-size: 0.6rem; /* Converted to rem for scaling */
   text-transform: uppercase;
   color: #64748b;
   font-weight: 800;
 }
 
 .status-value-nav {
-  font-size: 11px;
+  font-size: 0.7rem; /* Converted to rem for scaling */
   font-weight: 600;
 }
 
@@ -233,7 +261,7 @@ body {
 }
 
 .tab-label {
-  font-size: 10px;
+  font-size: 0.65rem; /* Converted to rem */
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -246,7 +274,7 @@ body {
   border: 1px solid #334155;
   padding: 8px 16px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 0.75rem; /* Converted to rem */
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -259,21 +287,18 @@ body {
 
 /* --- RESPONSIVENESS --- */
 
-/* Tablet/Small Laptop */
 @media (max-width: 900px) {
   .grid-layout {
     grid-template-columns: 1fr;
   }
 }
 
-/* Hide tab bar on Desktop */
 @media (min-width: 651px) {
   .mobile-tab-bar {
     display: none;
   }
 }
 
-/* --- REFINED MOBILE NAVBAR --- */
 @media (max-width: 650px) {
   .navbar {
     padding: 5px 0;
@@ -281,13 +306,11 @@ body {
   }
 
   .nav-content {
-    flex-direction: row; /* Keep it a single row */
-    justify-content: center; /* Center the brand */
+    flex-direction: row;
+    justify-content: center;
     padding: 0 15px;
   }
 
-  /* Hide the action buttons and status pills in the top nav */
-  /* They are now redundant because of our Bottom Tab Bar */
   .nav-actions {
     display: none !important; 
   }
@@ -307,10 +330,6 @@ body {
   .brand-name {
     font-size: 0.9rem;
     white-space: nowrap;
-  }
-
-  .status-label-nav {
-    font-size: 7px; /* Tiny sub-label to keep it sleek */
   }
 
   .welcome-title {
