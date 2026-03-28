@@ -556,3 +556,74 @@
   50% { transform: scale(1.5); opacity: 0.5; }
   100% { transform: scale(1); opacity: 1; }
 }
+
+
+/* --- RSI Dynamic Zones --- */
+.rsi-bar-container {
+    position: relative;
+    height: 12px;
+    background: #1e293b; /* Dark track */
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+
+/* Green zone for buying */
+.entry-zone {
+    position: absolute;
+    left: 30%;
+    width: 30%; /* Range 30-60 */
+    height: 100%;
+    background: rgba(74, 222, 128, 0.2);
+    border-left: 1px solid #4ade80;
+    border-right: 1px solid #4ade80;
+}
+
+/* Red zone for selling */
+.exit-zone {
+    position: absolute;
+    left: 70%;
+    width: 15%; /* Range 70-85 */
+    height: 100%;
+    background: rgba(248, 113, 113, 0.2);
+    border-left: 1px solid #f87171;
+    border-right: 1px solid #f87171;
+}
+
+/* --- Force Button States --- */
+.force-btn-init {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.buy-mode {
+    background: #065f46;
+    color: #4ade80;
+    border: 1px solid #047857;
+}
+
+.buy-mode:hover {
+    background: #047857;
+}
+
+.sell-mode {
+    background: #7f1d1d;
+    color: #f87171;
+    border: 1px solid #991b1b;
+}
+
+.sell-mode:hover {
+    background: #991b1b;
+}
+
+.warning-text {
+    color: #fbbf24;
+    font-size: 11px;
+    margin-bottom: 10px;
+    text-align: center;
+}

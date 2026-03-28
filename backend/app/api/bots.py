@@ -228,3 +228,15 @@ async def panic_close_all(db: Session = Depends(get_db), current_user: User = De
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail="Panic command failed to persist.")
+    
+
+@router.post("/api/bots/{bot_id}/reset-pnl")
+def reset_bot_pnl(bot_id: int, db: Session = Depends(get_db)):
+    bot = db.query(BotInstance).filter(BotInstance.id == bot_id).first()
+    if not bot:
+        raise HTTPException(status_code=404, detail="Bot not found")
+    
+    bot.daily_pnl = 0.0
+    db.commit()
+    
+    return {"message": f"Daily PnL for Bot {bot_id} has been reset to $0.00"}

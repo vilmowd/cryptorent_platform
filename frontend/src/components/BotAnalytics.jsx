@@ -39,6 +39,21 @@ const BotAnalytics = ({ botId, onBack }) => {
     }
   };
 
+  const handleResetPnL = async (botId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/bots/${botId}/reset-pnl`, {
+        method: 'POST',
+      });
+      if (response.ok) {
+        // Refresh your data here to show the $0.00 immediately
+        fetchBotData(); 
+        alert("PnL Reset Successful! Safety gates are now open.");
+      }
+    } catch (err) {
+      console.error("Failed to reset PnL:", err);
+    }
+  };
+
   const fetchData = useCallback(async () => {
     if (!botId) return;
     try {
