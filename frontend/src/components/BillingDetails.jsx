@@ -1,40 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './BillingDetails.css'; 
 
 const BillingDetails = ({ user }) => {
   const [loading, setLoading] = useState(false);
 
-  // --- CONFIGURATION ---
   const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
   if (!user) return <div className="loading-text">Synchronizing Ledger...</div>;
 
   const handleBillingAction = async () => {
     setLoading(true);
-    
-    // Switch between Stripe Checkout (New) or Stripe Portal (Manage)
-    const endpoint = user.is_subscription_active 
-      ? 'create-portal' 
-      : 'create-checkout';
+    const token = localStorage.getItem('token');
 
     try {
-      const token = localStorage.getItem('token');
-      // UPDATED: Now uses dynamic API_BASE_URL instead of hardcoded localhost
-      const response = await fetch(`${API_BASE_URL}/billing/${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert(data.detail || "Could not initialize billing.");
+      // CASE 1: USER IS ACTIVE -> Redirect to Portal
+      if (user.is_subscription_active) {
+        const response = await fetch(`${API_BASE_URL}/billing/create-portal`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        if (data.url) window.location.href = data.url;
+        return;
       }
+
+      // CASE 2: USER IS INACTIVE -> Open Paddle Checkout
+      const configRes = await fetch(`${API_BASE_URL}/billing/config`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const config = await configRes.json();
+
+      // Launch Paddle Overlay
+      window.Paddle.Checkout.open({
+        settings: {
+          displayMode: 'overlay',
+          theme: 'dark', // Fits the crypto bot vibe
+          locale: 'en'
+        },
+        items: [{ priceId: config.priceId, quantity: 1 }],
+        customer: { email: config.userEmail },
+        customData: { user_id: config.userId } // Crucial for the webhook!
+      });
+
     } catch (err) {
       console.error("Billing Error:", err);
       alert("Connection to billing server failed.");
@@ -45,7 +52,6 @@ const BillingDetails = ({ user }) => {
 
   return (
     <div className="billing-card-container">
-      {/* User Identity Header */}
       <div style={{ marginBottom: '20px', borderBottom: '1px solid #1e293b', paddingBottom: '15px' }}>
         <span className="status-label" style={{ fontSize: '10px', color: '#64748b' }}>REGISTERED OPERATOR</span>
         <p style={{ margin: 0, color: '#e2e8f0', fontWeight: 'bold' }}>{user.email}</p>
@@ -75,7 +81,7 @@ const BillingDetails = ({ user }) => {
         <div className="billing-stat-box">
           <p className="stat-label">Billing Model</p>
           <p className="stat-value normal" style={{ fontSize: '0.9rem' }}>
-            {user.billing_model === 'subscription' ? 'Monthly' : 'Pay-Per-Use'}
+            Monthly Subscription
           </p>
         </div>
       </div>
@@ -90,10 +96,9 @@ const BillingDetails = ({ user }) => {
           </span>
         </div>
         
-        {/* Stripe Customer ID (Optional/Technical Look) */}
         {user.stripe_customer_id && (
           <div className="info-row" style={{ marginTop: '8px' }}>
-            <span style={{color: '#475569', fontSize: '0.7rem'}}>STRIPE_ID:</span>
+            <span style={{color: '#475569', fontSize: '0.7rem'}}>PADDLE_ID:</span>
             <span style={{color: '#475569', fontSize: '0.7rem', fontFamily: 'monospace'}}>{user.stripe_customer_id}</span>
           </div>
         )}
@@ -101,8 +106,8 @@ const BillingDetails = ({ user }) => {
         <div className="w-full bg-slate-800 h-[1px]" style={{margin: '15px 0', backgroundColor: '#1e293b'}}></div>
         
         <p style={{fontSize: '0.7rem', color: '#64748b', fontStyle: 'italic', lineHeight: '1.4'}}>
-          * Subscription includes 24/7 automated RSI execution and real-time dashboard analytics. 
-          Managed via secure Stripe infrastructure.
+          * Subscription includes 24/7 automated RSI execution. 
+          Managed via secure **Paddle** infrastructure.
         </p>
       </div>
 
@@ -116,13 +121,14 @@ const BillingDetails = ({ user }) => {
           borderRadius: '12px',
           border: 'none',
           fontWeight: 'bold',
+          backgroundColor: user.is_subscription_active ? '#334155' : '#10b981',
+          color: 'white',
           cursor: loading ? 'not-allowed' : 'pointer',
-          marginTop: '10px',
-          transition: 'all 0.2s ease'
+          marginTop: '10px'
         }}
       >
         {loading 
-          ? 'COMMUNICATING WITH STRIPE...' 
+          ? 'PROCESSING...' 
           : user.is_subscription_active 
             ? 'MANAGE BILLING PORTAL' 
             : 'ACTIVATE 1-MONTH PLAN ($10)'}

@@ -1,112 +1,117 @@
-import stripe
 import os
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from models.user import User
-from models.bot import BotInstance
 from app.api.auth import get_current_user
 from datetime import datetime, timedelta, timezone
+from paddle_billing import Client, Environment, Options # pip install paddle-python-sdk
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
 
-# Load credentials
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+# --- PADDLE CONFIGURATION ---
+PADDLE_API_KEY = os.getenv("PADDLE_API_KEY")
+PADDLE_WEBHOOK_SECRET = os.getenv("PADDLE_WEBHOOK_SECRET")
+# Set to Environment.SANDBOX during development/testing
+PADDLE_ENV = Environment.PRODUCTION 
+PADDLE_PRICE_ID = os.getenv("PADDLE_PRICE_ID")
 
-# --- CONFIGURATION ---
-SITE_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+paddle_client = Client(
+    PADDLE_API_KEY, 
+    options=Options(PADDLE_ENV)
+)
+
+@router.get("/config")
+async def get_paddle_config(current_user: User = Depends(get_current_user)):
+    """
+    Frontend calls this to get the keys needed to open the Paddle Checkout.
+    """
+    return {
+        "publicKey": os.getenv("PADDLE_CLIENT_TOKEN"),
+        "priceId": os.getenv("PADDLE_PRICE_ID"),
+        "userId": str(current_user.id),
+        "userEmail": current_user.email
+    }
 
 @router.post("/create-portal")
-async def create_stripe_portal(
+async def create_paddle_portal(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Generates a link for users to manage cards/cancel subs on Stripe's site."""
-    current_user = db.merge(current_user) 
+    """
+    Redirects user to the Paddle Customer Portal to manage/cancel.
+    """
+    current_user = db.merge(current_user)
     try:
-        if not current_user.stripe_customer_id:
-            raise HTTPException(status_code=400, detail="No active Stripe customer found.")
+        # We use the 'stripe_customer_id' column to store the Paddle 'ctm_...' ID
+        customer_id = current_user.stripe_customer_id
+        if not customer_id:
+            raise HTTPException(status_code=400, detail="No active subscription found.")
 
-        session = stripe.billing_portal.Session.create(
-            customer=current_user.stripe_customer_id,
-            # Redirecting to /billing ensures the React app is already in an 
-            # authenticated view context when they return.
-            return_url=f"{SITE_URL}/billing", 
-        )
-        return {"url": session.url}
+        # Paddle Portal link format
+        portal_url = f"https://buy.paddle.com/customer-receipt/portal-link/{customer_id}"
+        return {"url": portal_url}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/create-checkout")
-async def create_checkout(
-    db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user)
-):
-    current_user = db.merge(current_user) 
-    price_id = os.getenv("STRIPE_PRICE_ID") 
-
-    try:
-        # Create customer if they don't exist
-        if not current_user.stripe_customer_id:
-            customer = stripe.Customer.create(
-                email=current_user.email,
-                metadata={"user_id": current_user.id}
-            )
-            current_user.stripe_customer_id = customer.id
-            db.commit()
-
-        session = stripe.checkout.Session.create(
-            customer=current_user.stripe_customer_id,
-            client_reference_id=str(current_user.id),
-            payment_method_types=['card'],
-            line_items=[{'price': price_id, 'quantity': 1}],
-            mode='subscription',
-            # UPDATED: Sending to /billing?payment=success prevents the 
-            # root path (/) from defaulting to the login screen.
-            success_url=f"{SITE_URL}/billing?payment=success",
-            cancel_url=f"{SITE_URL}/billing",
-        )
-        return {"url": session.url}
-    except Exception as e:
-        print(f"STRIPE ERROR: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    
-# --- THE WEBHOOK RECEIVER ---
-@router.post("/stripe-webhook")
-async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+@router.post("/webhook")
+async def paddle_webhook(request: Request, db: Session = Depends(get_db)):
+    """
+    Unified Webhook Receiver for Paddle.
+    REPLACES: /stripe-webhook and /stripe
+    """
     payload = await request.body()
-    sig_header = request.headers.get('stripe-signature')
+    signature = request.headers.get("paddle-signature")
+
+    if not signature:
+        raise HTTPException(status_code=400, detail="Missing signature")
 
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        # Verify and parse the event using the Paddle SDK
+        event = paddle_client.webhooks.unmarshal(
+            payload.decode('utf-8'), 
+            PADDLE_WEBHOOK_SECRET, 
+            signature
         )
     except Exception as e:
+        print(f"⚠️ Webhook verification failed: {e}")
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    if event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
-        user_id = session.get('client_reference_id')
+    event_type = event.event_type
+    data = event.data
+
+    # --- 1. PAYMENT SUCCESSFUL (Access Granted) ---
+    if event_type in ["transaction.completed", "subscription.activated"]:
+        # custom_data is passed from your Frontend Paddle.Checkout.open call
+        custom_data = getattr(data, 'custom_data', {})
+        user_id = custom_data.get("user_id") if custom_data else None
         
         if user_id:
             user = db.query(User).filter(User.id == int(user_id)).first()
             if user:
                 user.is_subscription_active = True
-                user.stripe_customer_id = session.get('customer')
+                user.stripe_customer_id = data.customer_id # Save Paddle Customer ID
+                # Set expiry (adjust days as needed for your plan)
                 user.subscription_expires_at = datetime.now(timezone.utc) + timedelta(days=30)
                 user.unpaid_fees = 0.0 
                 db.commit()
-                print(f"✅ User {user.email} ACTIVATED.")
+                print(f"✅ User {user.email} ACTIVATED via Paddle.")
 
-    elif event['type'] == 'invoice.paid':
-        invoice = event['data']['object']
-        customer_id = invoice.get('customer')
+    # --- 2. SUBSCRIPTION CANCELED (Access Revoked) ---
+    elif event_type == "subscription.canceled":
+        customer_id = data.customer_id
         user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
-        
         if user:
-            user.is_subscription_active = True
-            user.subscription_expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+            user.is_subscription_active = False
             db.commit()
+            print(f"❌ User {user.email} subscription REVOKED.")
+
+    # --- 3. PAYMENT FAILED / PAST DUE ---
+    elif event_type in ["subscription.past_due", "transaction.payment_failed"]:
+        customer_id = data.customer_id
+        user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
+        if user:
+            # We don't cancel immediately, maybe just flag them or send a Telegram alert
+            print(f"⚠️ User {user.email} payment failed. Past due.")
 
     return {"status": "success"}
