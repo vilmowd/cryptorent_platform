@@ -10,6 +10,7 @@ const BotAnalytics = ({ botId, onBack }) => {
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
+  // --- HEARTBEAT LOGIC ---
   const getEngineStatus = (lastUpdate) => {
     if (!lastUpdate) return { label: 'OFFLINE', color: '#94a3b8' }; // Gray
     
@@ -17,7 +18,7 @@ const BotAnalytics = ({ botId, onBack }) => {
     const now = new Date().getTime();
     const diffSeconds = (now - lastSeen) / 1000;
 
-    if (diffSeconds < 40) {
+    if (diffSeconds < 45) {
       return { label: 'LIVE', color: '#4ade80' }; // Bright Green
     } else if (diffSeconds < 120) {
       return { label: 'DELAYED', color: '#facc15' }; // Yellow
@@ -25,8 +26,6 @@ const BotAnalytics = ({ botId, onBack }) => {
       return { label: 'CRASHED', color: '#f87171' }; // Red
     }
   };
-
-  const status = getEngineStatus(data.updated_at);
 
   const fetchData = useCallback(async () => {
     if (!botId) return;
@@ -64,10 +63,13 @@ const BotAnalytics = ({ botId, onBack }) => {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  if (!data && !error) return <div className="loading-text">Accessing Secure Ledger...</div>;
+  // --- SAFETY GATES (Prevents "Cannot read property of null" errors) ---
   if (error) return <div className="status-alert error">{error}</div>;
+  if (!data) return <div className="loading-text">Accessing Secure Ledger...</div>;
 
-  const factors = data?.decision_factors || {};
+  // Once we are past the !data check, it is safe to calculate variables
+  const status = getEngineStatus(data.last_sync || data.updated_at);
+  const factors = data.decision_factors || {};
   
   return (
     <div className="analytics-container">
@@ -98,7 +100,7 @@ const BotAnalytics = ({ botId, onBack }) => {
 
       <div className="brain-grid">
         
-        {/* --- NEW: CURRENT MISSION CARD --- */}
+        {/* --- MISSION STATUS --- */}
         <div className="logic-card mission-card">
           <h3>Current Mission</h3>
           <div className="mission-content">
@@ -107,7 +109,7 @@ const BotAnalytics = ({ botId, onBack }) => {
                 <span className="pulse red">●</span>
                 <div>
                   <strong>DEFENDING POSITION</strong>
-                  <p>Monitoring Exit: TP ${(data.buy_price * (data.take_profit || 1.05)).toLocaleString()}</p>
+                  <p>Target Exit: ${(data.buy_price * (data.take_profit || 1.05)).toLocaleString()}</p>
                 </div>
               </div>
             ) : (
@@ -149,7 +151,7 @@ const BotAnalytics = ({ botId, onBack }) => {
           </div>
           <div className="stat-row">
             <span>Daily PnL:</span>
-            <strong style={{color: data.daily_pnl?.includes('-') ? '#f87171' : '#4ade80'}}>
+            <strong style={{color: String(data.daily_pnl).includes('-') ? '#f87171' : '#4ade80'}}>
               {data.daily_pnl || '$0.00'}
             </strong>
           </div>
@@ -178,7 +180,7 @@ const BotAnalytics = ({ botId, onBack }) => {
                     <tr key={i} className={isSell ? 'trade-sell' : 'trade-buy'}>
                       <td>{trade.timestamp ? new Date(trade.timestamp).toLocaleTimeString() : '---'}</td>
                       <td className="action-cell">{trade.action}</td>
-                      <td><span className={`badge ${trade.type.toLowerCase()}`}>{trade.type}</span></td>
+                      <td><span className={`badge ${trade.type?.toLowerCase() || ''}`}>{trade.type}</span></td>
                       <td>${trade.price}</td>
                       <td style={{ 
                         color: pnlValue > 0 ? '#4ade80' : (pnlValue < 0 ? '#f87171' : '#94a3b8'),
