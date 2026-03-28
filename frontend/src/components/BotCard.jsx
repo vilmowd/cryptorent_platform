@@ -90,7 +90,7 @@ const BotCard = ({ botId, onNavigate, onBotDeleted, onToggleAttempt }) => {
     }, 10000); 
 
     return () => clearInterval(interval);
-  }, [fetchStats, botId, isEditing]); // Added botId and isEditing to deps
+  }, [fetchStats, botId, isEditing], bot); // Added botId and isEditing to deps
 
   const validateTelegram = async () => {
     setTgStatus({ loading: true, valid: false, error: null });
