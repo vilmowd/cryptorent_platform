@@ -97,24 +97,17 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     
     if (params.get('payment') === 'success') {
-      const token = localStorage.getItem('token');
+      // 1. Clear the URL so the user doesn't get stuck in a loop
+      window.history.replaceState({}, document.title, "/");
+
+      // 2. Trigger your existing logout logic
+      // This clears the localStorage token and flips isLoggedIn to false
+      handleLogout(); 
       
-      if (token) {
-        // Force session to active so the Login guard doesn't trigger
-        setIsLoggedIn(true);
-        setShowSuccessModal(true);
-        fetchData(); 
-        
-        // Clean up URL and move view to Dashboard internally
-        window.history.replaceState({}, document.title, "/");
-        setCurrentPath("/");
-      } else {
-        // Fallback: If token is missing, we must go to login
-        setCurrentPath("/");
-        setIsLoggedIn(false);
-      }
+      // 3. Optional: Alert the user why they were kicked out
+      alert("Subscription Activated! Please log in again to initialize your secure session.");
     }
-  }, [currentPath]); // Re-run if path changes to catch the /billing landing
+  }, []);
 
   // 2. HANDLES ROUTING AND INITIAL DATA FETCH
   useEffect(() => {
