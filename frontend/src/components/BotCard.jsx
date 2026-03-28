@@ -211,8 +211,11 @@ const BotCard = ({ botId, onNavigate, onBotDeleted, onToggleAttempt }) => {
           {!bot.is_running && (
             <button 
               className="delete-purge-btn" 
-              onClick={deleteBot} 
-              title="PERMANENT PURGE"
+              onClick={(e) => {
+                e.stopPropagation(); // Prevents dashboard from switching focus
+                deleteBot(e);
+              }} 
+              title="TERMINATE AND PURGE"
             >
               <span className="purge-text">PURGE</span>
               <span className="purge-glitch"></span>

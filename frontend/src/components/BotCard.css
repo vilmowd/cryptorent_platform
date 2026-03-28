@@ -552,48 +552,67 @@ logic-grid { display: flex; gap: 5px; margin-top: 10px; }
     box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
 }
 
-/* Container for the trash icon to give it a proper hit area */
-.delete-trash-btn {
-  background: rgba(255, 68, 68, 0.05);
-  border: 1px solid rgba(255, 68, 68, 0.2);
-  color: #ff4444;
-  padding: 6px 10px;
-  border-radius: 8px;
+/* The Main Container for the Purge Button */
+.delete-purge-btn {
+  position: relative;
+  background: rgba(255, 68, 68, 0.05); /* Very faint red */
+  border: 1px solid rgba(255, 68, 68, 0.3);
+  color: #ff5f5f;
+  padding: 6px 14px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 12px;
-  font-family: 'Montserrat', 'JetBrains Mono', monospace;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  font-family: 'JetBrains Mono', 'Montserrat', monospace;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   margin-bottom: 8px;
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* The Hover State: High-Visibility Warning */
-.delete-trash-btn:hover {
+/* Hover State: The "Armed" Warning */
+.delete-purge-btn:hover {
   background: #ff4444;
-  color: white;
+  color: #ffffff;
   border-color: #ff4444;
-  box-shadow: 0 0 15px rgba(255, 68, 68, 0.4);
+  box-shadow: 0 0 15px rgba(255, 68, 68, 0.5);
   transform: translateY(-1px);
 }
 
-/* Action: Subtle shrink on click */
-.delete-trash-btn:active {
-  transform: scale(0.95);
+/* The "Scanner" Glitch Effect */
+.purge-glitch {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  transition: 0.5s;
 }
 
-/* Ensure the button doesn't look weird when the bot is running */
-.delete-trash-btn:disabled {
-  opacity: 0.3;
+/* Trigger the scanner on hover */
+.delete-purge-btn:hover .purge-glitch {
+  left: 100%;
+}
+
+/* Click Feedback */
+.delete-purge-btn:active {
+  transform: scale(0.92);
+  filter: brightness(1.2);
+}
+
+/* Disabled/Running state */
+.delete-purge-btn:disabled {
+  opacity: 0.2;
   cursor: not-allowed;
   filter: grayscale(1);
-}
-
-/* Optional: Add a "Trash" icon via pseudo-element if you want to remove the emoji */
-.delete-trash-btn::before {
-  content: 'PURGE'; /* Or use a FontAwesome icon if you have it */
 }
