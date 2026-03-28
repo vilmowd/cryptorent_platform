@@ -1,68 +1,40 @@
 import os
-from fastapi import APIRouter, Depends, HTTPException, Request
+import httpx # Ensure you have 'pip install httpx' for the telegram call
+from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from models.user import User
-from app.api.auth import get_current_user
 from datetime import datetime, timedelta, timezone
-from paddle_billing import Client, Environment, Options # pip install paddle-python-sdk
+from paddle_billing import Client, Environment, Options
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
 
-# --- PADDLE CONFIGURATION ---
+# --- CONFIGURATION ---
 PADDLE_API_KEY = os.getenv("PADDLE_API_KEY", "").strip()
 PADDLE_WEBHOOK_SECRET = os.getenv("PADDLE_WEBHOOK_SECRET", "").strip()
-# Switch to Environment.SANDBOX if testing locally
-PADDLE_ENV = Environment.PRODUCTION 
-PADDLE_PRICE_ID = os.getenv("PADDLE_PRICE_ID", "").strip()
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-# Initialize the Official Paddle SDK
 paddle_client = Client(
     PADDLE_API_KEY, 
-    options=Options(PADDLE_ENV)
+    options=Options(Environment.PRODUCTION) 
 )
 
-@router.get("/config")
-async def get_paddle_config(current_user: User = Depends(get_current_user)):
-    """
-    Frontend calls this to get the keys needed to open the Paddle Checkout.
-    Matches the keys expected by the React BillingDetails component.
-    """
-    return {
-        "clientToken": os.getenv("PADDLE_CLIENT_TOKEN", "").strip(),
-        "priceId": PADDLE_PRICE_ID,
-        "userId": str(current_user.id),
-        "userEmail": current_user.email
-    }
-
-@router.post("/create-portal")
-async def create_paddle_portal(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Generates a portal link for users to manage their subscription.
-    """
-    # Merge user into current session to avoid DetachedInstanceError
-    current_user = db.merge(current_user)
+async def send_telegram_alert(message: str):
+    """Helper to send alerts to your Telegram bot."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("⚠️ Telegram config missing. Alert not sent.")
+        return
     
-    try:
-        # We use 'stripe_customer_id' to store Paddle's 'ctm_...' ID for compatibility
-        customer_id = current_user.stripe_customer_id
-        if not customer_id:
-            raise HTTPException(status_code=400, detail="No active subscription found to manage.")
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    async with httpx.AsyncClient() as client:
+        try:
+            await client.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"})
+        except Exception as e:
+            print(f"❌ Failed to send Telegram alert: {e}")
 
-        # Paddle Billing Portal URL format
-        portal_url = f"https://buy.paddle.com/customer-receipt/portal-link/{customer_id}"
-        return {"url": portal_url}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/webhook")
-async def paddle_webhook(request: Request, db: Session = Depends(get_db)):
-    """
-    Unified Webhook Receiver for Paddle v2.
-    """
+@router.post("/paddle-webhook")
+async def paddle_webhook_receiver(request: Request, db: Session = Depends(get_db)):
     payload = await request.body()
     signature = request.headers.get("paddle-signature")
 
@@ -70,51 +42,53 @@ async def paddle_webhook(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Missing paddle-signature header")
 
     try:
-        # Verify the webhook signature using the SDK
         event = paddle_client.webhooks.unmarshal(
             payload.decode('utf-8'), 
             PADDLE_WEBHOOK_SECRET, 
             signature
         )
     except Exception as e:
-        print(f"⚠️ Webhook verification failed: {e}")
-        raise HTTPException(status_code=400, detail="Invalid webhook signature")
+        print(f"⚠️ Paddle Signature verification failed: {e}")
+        raise HTTPException(status_code=400, detail="Invalid signature")
 
     event_type = event.event_type
     data = event.data
 
-    # --- 1. SUBSCRIPTION ACTIVATED / TRANSACTION COMPLETED ---
-    if event_type in ["transaction.completed", "subscription.activated"]:
-        # Extract user_id from custom_data sent by React frontend
+    # --- 1. HANDLING SUCCESSFUL PAYMENTS ---
+    if event_type == "transaction.completed":
         custom_data = getattr(data, 'custom_data', {})
         user_id = custom_data.get("user_id") if custom_data else None
         
         if user_id:
             user = db.query(User).filter(User.id == int(user_id)).first()
             if user:
+                # Update Database
                 user.is_subscription_active = True
-                user.stripe_customer_id = data.customer_id # Stores ctm_...
-                # Mark expiry for 31 days (buffer for month-to-month)
+                user.stripe_customer_id = data.customer_id 
                 user.subscription_expires_at = datetime.now(timezone.utc) + timedelta(days=31)
                 user.unpaid_fees = 0.0 
                 db.commit()
-                print(f"✅ [PADDLE] User {user.email} ACTIVATED.")
 
-    # --- 2. SUBSCRIPTION CANCELED ---
+                # Send Telegram Notification
+                msg = (
+                    f"💰 *New Subscription Active!*\_ \n"
+                    f"👤 User: `{user.email}`\n"
+                    f"💳 System: Paddle\n"
+                    f"🤖 Bot Status: **Online & Ready**"
+                )
+                await send_telegram_alert(msg)
+                print(f"✅ User {user.email} ACTIVATED and Alerted.")
+            else:
+                await send_telegram_alert(f"⚠️ Webhook Error: Received payment for User ID {user_id}, but user not found in DB.")
+        else:
+            await send_telegram_alert("⚠️ Webhook Warning: Payment received but no `user_id` found in custom_data.")
+
+    # --- 2. HANDLING CANCELLATIONS ---
     elif event_type == "subscription.canceled":
-        customer_id = data.customer_id
-        user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
+        user = db.query(User).filter(User.stripe_customer_id == data.customer_id).first()
         if user:
             user.is_subscription_active = False
             db.commit()
-            print(f"❌ [PADDLE] User {user.email} subscription REVOKED.")
-
-    # --- 3. PAYMENT FAILED / OVERDUE ---
-    elif event_type in ["subscription.past_due", "transaction.payment_failed"]:
-        customer_id = data.customer_id
-        user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
-        if user:
-            # Here you could trigger your Telegram notification bot to warn the user
-            print(f"⚠️ [PADDLE] Payment failed for {user.email}. System flagged.")
+            await send_telegram_alert(f"❌ *Subscription Cancelled*: `{user.email}` has deactivated their bot.")
 
     return {"status": "success"}
