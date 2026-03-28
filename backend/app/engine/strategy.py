@@ -52,14 +52,36 @@ class StrategyManager:
         """Checks if Kraken has enough USD/USDT to cover the requested trade amount."""
         try:
             balance = self.exchange.fetch_balance()
-            # Kraken uses 'ZUSD', 'USD', or 'USDT'
+            # Kraken keys often prefix with 'Z' for fiat
             available = balance['free'].get('USD', 
                         balance['free'].get('ZUSD', 
                         balance['free'].get('USDT', 0)))
             return available >= requested_usd, float(available)
         except Exception as e:
-            print(f"Balance Check Failed: {e}")
+            # Masking the error to avoid leaking keys in logs while still identifying the issue
+            print(f"Balance Check Failed for Bot {self.bot.id}: {e}")
             return False, 0.0
+
+    # --- NEW: STRATEGY SIGNAL METHOD ---
+    # This fixes the 'StrategyManager' object has no attribute 'should_buy_signal' error
+    def should_buy_signal(self, data, price):
+        """
+        Determines if the technical conditions for a buy are met.
+        """
+        # 1. Safety Checks (Price range & Daily Loss)
+        if (self.bot.min_trade_price and price < self.bot.min_trade_price) or \
+           (self.bot.max_trade_price and price > self.bot.max_trade_price):
+            return False
+        
+        if self.bot.daily_pnl <= -abs(self.bot.max_daily_loss or 50): 
+            return False
+
+        # 2. Indicator Logic (EMA Pullback)
+        trend_ok = price > data['ema_200']
+        pullback_ok = 30 < data['rsi'] < 60
+        near_ema_ok = price <= (data['ema_20'] * 1.001)
+        
+        return trend_ok and pullback_ok and near_ema_ok
 
     # --- EXECUTION ENGINE ---
     def record_execution(self, action, side, price, amount, pnl=0.0):
@@ -73,13 +95,12 @@ class StrategyManager:
                     side=side.lower(),
                     amount=amount
                 )
-                # Ensure we use the actual price filled by the exchange
                 execution_price = float(order.get('average') or order.get('price') or price)
             except Exception as e:
                 self.log_error(f"EXCHANGE REJECTED ORDER: {str(e)}")
                 return 
 
-            # 2. PERMANENT LEDGER (Updated for tracking USD cost basis)
+            # 2. PERMANENT LEDGER
             new_db_trade = Trade(
                 bot_id=self.bot.id,
                 user_id=self.bot.user_id,
@@ -110,7 +131,6 @@ class StrategyManager:
                 self.bot.unrealized_pnl = 0.0
                 self.bot.position_size = 0.0
                 
-                # Fee calculation logic if owner exists
                 if pnl > 0 and self.bot.owner:
                     current_fees = self.bot.owner.unpaid_fees or 0
                     self.bot.owner.unpaid_fees = current_fees + (pnl * 0.0012)
@@ -147,14 +167,12 @@ class StrategyManager:
             return None
 
     def calculate_trade_quantity(self, price):
-        """Calculates quantity based on the trade_amount_usd set by the user."""
         try:
             usd_to_risk = getattr(self.bot, 'trade_amount_usd', 15.0)
             if usd_to_risk <= 0: 
                 usd_to_risk = 15.0
 
             quantity = usd_to_risk / price
-            # Ensure quantity matches exchange precision
             return float(self.exchange.amount_to_precision(self.bot.symbol, quantity))
         except Exception as e:
             print(f"Quantity Calculation Error: {e}")
@@ -176,7 +194,7 @@ class StrategyManager:
                 
             price = float(data['close'])
             
-            # --- Sync Indicators & Live Unrealized PnL ---
+            # Update Live Indicators
             self.bot.last_known_price = price
             self.bot.last_rsi = float(data['rsi'])
             self.bot.last_ema_200 = float(data['ema_200'])
@@ -189,7 +207,7 @@ class StrategyManager:
 
             self.db.commit()
 
-            # --- MANUAL FORCE ACTION ---
+            # --- MANUAL OVERRIDE ---
             if hasattr(self.bot, 'force_action') and self.bot.force_action:
                 action_to_take = self.bot.force_action
                 self.bot.force_action = None 
@@ -200,7 +218,6 @@ class StrategyManager:
                     if size > 0:
                         self.record_execution("MANUAL OVERRIDE", "BUY", price, size)
                     return 
-                
                 elif action_to_take == "SELL" and self.bot.in_position:
                     pnl = (price - self.bot.buy_price) * self.bot.position_size
                     self.record_execution("MANUAL OVERRIDE", "SELL", price, self.bot.position_size, pnl=pnl)
@@ -208,23 +225,9 @@ class StrategyManager:
 
             # --- AUTOMATED STRATEGY ---
             if not self.bot.in_position:
-                # 1. Price/Daily PnL Safety
-                if (self.bot.min_trade_price and price < self.bot.min_trade_price) or \
-                   (self.bot.max_trade_price and price > self.bot.max_trade_price):
-                    return
-                
-                if self.bot.daily_pnl <= -abs(self.bot.max_daily_loss or 50): 
-                    return
-
-                # 2. Entry Logic
-                trend_ok = price > data['ema_200']
-                pullback_ok = 30 < data['rsi'] < 60
-                near_ema_ok = price <= (data['ema_20'] * 1.001)
-                
-                if trend_ok and pullback_ok and near_ema_ok:
+                # FIXED: Calling the new method
+                if self.should_buy_signal(data, price):
                     size = self.calculate_trade_quantity(price)
-                    
-                    # 3. Funding Check
                     requested_usd = getattr(self.bot, 'trade_amount_usd', 15.0)
                     can_afford, bal = self.check_available_funds(requested_usd)
                     
