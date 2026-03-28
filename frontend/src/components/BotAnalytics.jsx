@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './BotAnalytics.css'; 
+import StrategyInfoModal from './StrategyInfoModal';
 
 const BotAnalytics = ({ botId, onBack }) => {
   const [data, setData] = useState(null);
   const [trades, setTrades] = useState([]); 
   const [error, setError] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false); // Modal state
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
@@ -54,11 +56,26 @@ const BotAnalytics = ({ botId, onBack }) => {
     <div className="analytics-container">
       <div className="analytics-header">
         <button onClick={onBack} className="back-btn">← EXIT TERMINAL</button>
-        <h1>Engine Transparency: {data.symbol || `Bot #${botId}`}</h1>
+        
+        <div className="header-center">
+            <h1>Engine Transparency: {data.symbol || `Bot #${botId}`}</h1>
+            {/* NEW INFO BUTTON */}
+            <button className="info-trigger-btn" onClick={() => setIsModalOpen(true)}>
+              ℹ️ HOW IT WORKS
+            </button>
+        </div>
+
         <div className="sync-status">
             Last Heartbeat: {data.last_sync ? new Date(data.last_sync).toLocaleTimeString() : "STANDBY"}
         </div>
       </div>
+
+      {/* STRATEGY MODAL */}
+      <StrategyInfoModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        data={data} 
+      />
 
       <div className="brain-grid">
         {/* --- STRATEGY LOGIC CARD --- */}
