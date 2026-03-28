@@ -81,10 +81,27 @@ export default function Dashboard() {
 
   // --- DELETE HANDLER (Updates UI instantly) ---
   const handleBotDeleted = (deletedId) => {
-    setBots(prev => prev.filter(b => b.id !== deletedId));
-    if (activeBotId === deletedId) {
-      setActiveBotId(null);
-    }
+    setBots(prev => {
+      // 1. Filter out the deleted bot
+      const updatedBots = prev.filter(b => b.id !== deletedId);
+      
+      // 2. Handle focus management inside the state setter
+      if (activeBotId === deletedId) {
+        if (updatedBots.length > 0) {
+          // Switch to the first bot in the remaining list
+          setActiveBotId(updatedBots[0].id);
+        } else {
+          // No bots left, set to null
+          setActiveBotId(null);
+        }
+      }
+      
+      return updatedBots;
+    });
+    
+    // 3. Optional: Trigger a fresh user data sync to update "Accrued Fees" 
+    // since a bot deletion often follows a final PnL settle.
+    fetchUserData();
   };
 
   // --- NEW BOT HANDLER ---
@@ -234,7 +251,7 @@ export default function Dashboard() {
                   <div 
                     key={bot.id} 
                     onClick={() => setActiveBotId(bot.id)} 
-                    className={`transition-all duration-300 ${activeBotId === bot.id ? 'transform scale-[1.02]' : 'opacity-60 grayscale-[0.5] hover:opacity-100 hover:grayscale-0'}`}
+                    className={`transition-all duration-300 cursor-pointer ${activeBotId === bot.id ? 'transform scale-[1.02]' : 'opacity-60 grayscale-[0.5] hover:opacity-100 hover:grayscale-0'}`}
                   >
                     <BotCard 
                       botId={bot.id} 
@@ -251,7 +268,13 @@ export default function Dashboard() {
           <div className="lg:col-span-2 space-y-10">
             <section>
               <h3 className="text-xs font-bold text-slate-500 uppercase mb-4 tracking-widest">Performance Overview</h3>
-              <TradeSummary botId={activeBotId} />
+              {activeBotId ? (
+                <TradeSummary botId={activeBotId} />
+              ) : (
+                <div className="p-8 bg-slate-900/30 border border-slate-800 rounded-3xl text-center text-slate-500 italic font-mono text-xs">
+                  SYSTEM STANDBY: SELECT A BOT TO VIEW LIVE DATA
+                </div>
+              )}
             </section>
 
             <section className={!user?.is_subscription_active ? "grayscale opacity-30 pointer-events-none" : ""}>
@@ -264,7 +287,13 @@ export default function Dashboard() {
 
             <section className="h-full flex flex-col">
               <h3 className="text-xs font-bold text-slate-500 uppercase mb-4 tracking-widest">Trade Ledger</h3>
-              <TradeHistory botId={activeBotId} />
+              {activeBotId ? (
+                <TradeHistory botId={activeBotId} />
+              ) : (
+                <div className="p-8 bg-slate-900/30 border border-slate-800 rounded-3xl text-center text-slate-500 italic font-mono text-xs">
+                  NO ACTIVE LEDGER
+                </div>
+              )}
             </section>
           </div>
         </div>

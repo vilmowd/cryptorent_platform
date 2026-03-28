@@ -81,10 +81,16 @@ const BotCard = ({ botId, onNavigate, onBotDeleted, onToggleAttempt }) => {
   }, [botId, isEditing, API_BASE_URL, getAuthHeaders]);
 
   useEffect(() => {
+    if (!botId) return; // Don't start interval if no ID
+
     fetchStats();
-    const interval = setInterval(fetchStats, 10000); 
+    const interval = setInterval(() => {
+      // Only fetch if we aren't currently editing
+      if (!isEditing) fetchStats();
+    }, 10000); 
+
     return () => clearInterval(interval);
-  }, [fetchStats]);
+  }, [fetchStats, botId, isEditing]); // Added botId and isEditing to deps
 
   const validateTelegram = async () => {
     setTgStatus({ loading: true, valid: false, error: null });
@@ -161,38 +167,34 @@ const BotCard = ({ botId, onNavigate, onBotDeleted, onToggleAttempt }) => {
   };
 
   const deleteBot = async (e) => {
-    e.stopPropagation(); // Prevent triggering the "setActiveBotId" in Dashboard
-    const isRunning = bot.is_running;
-    const confirmMsg = isRunning 
-      ? `⚠️ BOT IS LIVE! Force-stopping engine and deleting ${bot.symbol}?`
+    e.stopPropagation(); 
+    
+    const confirmMsg = bot.is_running 
+      ? `⚠️ BOT IS LIVE! This will stop the engine and delete ${bot.symbol}. Proceed?`
       : `Confirm deletion of ${bot.symbol}?`;
 
     if (!window.confirm(confirmMsg)) return;
 
     try {
-      if (isRunning) {
-        await fetch(`${API_BASE_URL}/bots/${botId}/toggle`, { 
-          method: 'POST', 
-          headers: getAuthHeaders() 
-        });
-        await new Promise(r => setTimeout(r, 1000));
-      }
-
+      // Don't manually toggle here. 
+      // Ensure your Backend DELETE route handles stopping the engine first.
       const res = await fetch(`${API_BASE_URL}/bots/${botId}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
 
       if (res.ok) {
-        triggerToast("Bot Purged Successfully");
-        // Notify dashboard to remove the bot from the UI list
+        // 1. Clear local state so the UI doesn't try to re-render old data
+        setBot(null);
+        // 2. Trigger the dashboard update
         if (onBotDeleted) onBotDeleted(botId);
+        triggerToast("Bot Purged");
       } else {
         const errorData = await res.json();
-        triggerToast(`Purge Failed: ${errorData.detail}`);
+        triggerToast(`Delete Failed: ${errorData.detail}`);
       }
     } catch (error) {
-      triggerToast("Critical Error during Force-Stop");
+      triggerToast("Network Error during deletion");
     }
   };
 
