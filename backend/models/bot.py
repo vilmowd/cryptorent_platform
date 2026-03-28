@@ -22,13 +22,13 @@ class BotInstance(Base):
     encrypted_passphrase = Column(String(500), nullable=True) 
 
     # --- User-Defined Parameters ---
-    trade_amount_usd = Column(Float, default=15.0)  # Defaulting to your preferred $15
+    trade_amount_usd = Column(Float, default=15.0) 
     rsi_low = Column(Integer, default=35)
     rsi_high = Column(Integer, default=65)
     take_profit = Column(Float, default=1.03)
     stop_loss = Column(Float, default=0.98)
     
-    # --- Price Guardrails (Safety Thresholds) ---
+    # --- Price Guardrails ---
     min_trade_price = Column(Float, default=0.0)
     max_trade_price = Column(Float, default=999999.0)
     
@@ -41,16 +41,17 @@ class BotInstance(Base):
     is_running = Column(Boolean, default=False)
     in_position = Column(Boolean, default=False)
     buy_price = Column(Float, default=0.0)
-    position_size = Column(Float, default=0.0) # Stores the exact crypto amount (e.g. 0.000234 BTC)
-    daily_pnl = Column(Float, default=0.0)      # Realized Profit (Closed trades)
-    unrealized_pnl = Column(Float, default=0.0) # Live Profit (Floating PnL)
+    position_size = Column(Float, default=0.0) 
+    daily_pnl = Column(Float, default=0.0)      
+    unrealized_pnl = Column(Float, default=0.0) 
     consecutive_losses = Column(Integer, default=0)
     
     # --- EMERGENCY & MANUAL OVERRIDE ---
     force_action = Column(String, nullable=True) 
 
-    # Standardized date string for easier daily resets
-    last_trade_day = Column(String, default=lambda: str(datetime.now(timezone.utc).date()))
+    # FIXED: Use a function reference for default, not an immediately executed string
+    # This ensures the date is generated when the bot is CREATED, not when the server starts.
+    last_trade_day = Column(String, default=lambda: datetime.now(timezone.utc).strftime('%Y-%m-%d'))
     last_loss_time = Column(DateTime, nullable=True)
 
     # --- Indicators & Live Stats ---
@@ -63,5 +64,5 @@ class BotInstance(Base):
     telegram_bot_token = Column(String, nullable=True)
     telegram_chat_id = Column(String, nullable=True)
     
-    # --- HEARTBEAT ---
-    updated_at = Column(DateTime, nullable=True)
+    # FIXED: Standardize heartbeat to auto-update on every change
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
