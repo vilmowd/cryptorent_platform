@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './BillingDetails.css'; 
 
 const BillingDetails = ({ user }) => {
   const [loading, setLoading] = useState(false);
 
+  // Configuration - Fallback to localhost if env is missing
   const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
   if (!user) return <div className="loading-text">Synchronizing Ledger...</div>;
@@ -17,34 +18,61 @@ const BillingDetails = ({ user }) => {
       if (user.is_subscription_active) {
         const response = await fetch(`${API_BASE_URL}/billing/create-portal`, {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
         const data = await response.json();
-        if (data.url) window.location.href = data.url;
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          alert("Could not open management portal.");
+        }
         return;
       }
 
       // CASE 2: USER IS INACTIVE -> Open Paddle Checkout
+      // Retrieve price info and user IDs from your FastAPI backend
       const configRes = await fetch(`${API_BASE_URL}/billing/config`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      
+      if (!configRes.ok) throw new Error("Failed to fetch billing config");
+      
       const config = await configRes.json();
 
       // Launch Paddle Overlay
+      // Note: We use String().trim() to prevent any malformed ID errors
       window.Paddle.Checkout.open({
         settings: {
           displayMode: 'overlay',
-          theme: 'dark', // Fits the crypto bot vibe
+          theme: 'dark', 
           locale: 'en'
         },
-        items: [{ priceId: config.priceId, quantity: 1 }],
-        customer: { email: config.userEmail },
-        customData: { user_id: config.userId } // Crucial for the webhook!
+        items: [
+          { 
+            priceId: String(config.priceId).trim(), 
+            quantity: 1 
+          }
+        ],
+        customer: { 
+          email: config.userEmail 
+        },
+        customData: { 
+          user_id: String(config.userId) 
+        },
+        eventCallback: (event) => {
+          if (event.name === 'checkout.completed') {
+            // Auto-refresh so the user sees their 'ACTIVE' status immediately
+            window.location.reload();
+          }
+        }
       });
 
     } catch (err) {
       console.error("Billing Error:", err);
-      alert("Connection to billing server failed.");
+      alert("Connection to billing server failed. Please check your connection.");
     } finally {
       setLoading(false);
     }
@@ -52,6 +80,7 @@ const BillingDetails = ({ user }) => {
 
   return (
     <div className="billing-card-container">
+      {/* User Identity Header */}
       <div style={{ marginBottom: '20px', borderBottom: '1px solid #1e293b', paddingBottom: '15px' }}>
         <span className="status-label" style={{ fontSize: '10px', color: '#64748b' }}>REGISTERED OPERATOR</span>
         <p style={{ margin: 0, color: '#e2e8f0', fontWeight: 'bold' }}>{user.email}</p>
@@ -96,6 +125,7 @@ const BillingDetails = ({ user }) => {
           </span>
         </div>
         
+        {/* Display Paddle ID if available */}
         {user.stripe_customer_id && (
           <div className="info-row" style={{ marginTop: '8px' }}>
             <span style={{color: '#475569', fontSize: '0.7rem'}}>PADDLE_ID:</span>
@@ -124,7 +154,8 @@ const BillingDetails = ({ user }) => {
           backgroundColor: user.is_subscription_active ? '#334155' : '#10b981',
           color: 'white',
           cursor: loading ? 'not-allowed' : 'pointer',
-          marginTop: '10px'
+          marginTop: '10px',
+          transition: 'opacity 0.2s ease'
         }}
       >
         {loading 
