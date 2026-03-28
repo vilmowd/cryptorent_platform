@@ -1,30 +1,27 @@
 # backend/init_db.py
-from database import engine, Base # Use absolute import
+from database import engine, Base
 
 def setup_database():
     print("\n--- 🗄️ DATABASE INITIALIZATION ---")
-    
     try:
-        # Force the imports INSIDE the function to ensure 
-        # they are registered to the Base right before creation.
+        # Explicitly import models here to register them with Base.metadata
         from models.user import User
         from models.bot import BotInstance
         from models.trade import Trade
         
-        print("📦 Models registered: User, BotInstance, Trade")
-        
-        # This is the command that actually talks to Postgres
+        print(f"📦 Found models: {[User.__tablename__, BotInstance.__tablename__, Trade.__tablename__]}")
+
+        # This command creates tables that DON'T exist. 
+        # It will NOT update existing tables.
         Base.metadata.create_all(bind=engine)
         
-        tables = list(Base.metadata.tables.keys())
-        if not tables:
-            print("⚠️ WARNING: No tables found to sync. Check your model imports!")
-        else:
-            print(f"✅ SUCCESS: Tables synced: {tables}")
-            
+        # Verify what actually exists in the DB now
+        from sqlalchemy import inspect
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+        print(f"✅ SUCCESS: Tables currently in DB: {existing_tables}")
+
     except Exception as e:
         print(f"❌ DATABASE ERROR: {e}")
-        # In production/Railway, we want to know if this fails immediately
-        raise e 
-        
+        raise e
     print("----------------------------------\n")
