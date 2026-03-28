@@ -137,6 +137,12 @@ const BotCard = ({ botId, onNavigate }) => {
   };
 
   const toggleBot = async () => {
+    // --- NEW: EDITING MODE CHECK ---
+    if (isEditing) {
+      triggerToast("Please CONFIRM settings before starting engine!");
+      return;
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/bots/${botId}/toggle`, { 
         method: 'POST',
@@ -252,7 +258,11 @@ const BotCard = ({ botId, onNavigate }) => {
       </div>
 
       <div className="card-actions">
-        <button onClick={toggleBot} className={`power-button ${bot.is_running ? 'stop' : 'start'}`}>
+        <button 
+          onClick={toggleBot} 
+          className={`power-button ${bot.is_running ? 'stop' : 'start'} ${isEditing ? 'disabled-opacity' : ''}`}
+          title={isEditing ? "Confirm settings first" : ""}
+        >
           {bot.is_running ? 'SHUTDOWN ENGINE' : 'INITIALIZE ENGINE'}
         </button>
       </div>
