@@ -138,11 +138,11 @@ class StrategyManager:
 
     def run_tick(self):
         try:
-            # 1. HOT RELOAD
+            # 1. HOT RELOAD & DB REFRESH
             self.db.expire(self.bot)
             self.db.refresh(self.bot)
 
-            # 2. HEARTBEAT & STARTUP
+            # 2. HEARTBEAT & STARTUP ALERT
             if self.bot.updated_at is None:
                 self.send_telegram_msg(f"🤖 <b>{self.bot.symbol} Bot Live!</b>")
             self.bot.updated_at = datetime.now(timezone.utc)
@@ -155,14 +155,31 @@ class StrategyManager:
                 
             price = float(data['close'])
             
-            # 4. UPDATE UI DATA (Crucial: save before potential safety returns)
+            # 4. UPDATE UI INDICATORS (Save these every tick for the React Modal)
             self.bot.last_known_price = price
             self.bot.last_rsi = float(data['rsi'])
             self.bot.last_ema_200 = float(data['ema_200'])
             self.bot.last_ema_20 = float(data['ema_20']) 
             self.db.commit()
 
-            # 5. SAFETY CHECKS (Only blocks trading)
+            # --- NEW: 5. CHECK FOR MANUAL FORCE ACTION ---
+            # This bypasses all indicator checks and safety gates
+            if hasattr(self.bot, 'force_action') and self.bot.force_action:
+                action_to_take = self.bot.force_action # "BUY" or "SELL"
+                self.bot.force_action = None # CLEAR THE FLAG IMMEDIATELY
+                self.db.commit()
+
+                if action_to_take == "BUY" and not self.bot.in_position:
+                    size = self.calculate_dynamic_size(price, data['atr'])
+                    self.record_execution("MANUAL OVERRIDE", "BUY", price, size)
+                    return # Finish tick after manual execution
+                
+                elif action_to_take == "SELL" and self.bot.in_position:
+                    pnl = (price - self.bot.buy_price) * self.bot.position_size
+                    self.record_execution("MANUAL OVERRIDE", "SELL", price, self.bot.position_size, pnl=pnl)
+                    return # Finish tick after manual execution
+
+            # 6. AUTOMATED SAFETY CHECKS (Only blocks automated trading)
             if not self.bot.in_position:
                 if (self.bot.min_trade_price and price < self.bot.min_trade_price) or \
                    (self.bot.max_trade_price and price > self.bot.max_trade_price):
@@ -171,10 +188,10 @@ class StrategyManager:
                 if self.bot.daily_pnl <= -abs(self.bot.max_daily_loss or 100): 
                     return
 
-            # 6. STRATEGY LOGIC
+            # 7. AUTOMATED STRATEGY LOGIC
             trend_ok = price > data['ema_200']
             pullback_ok = 30 < data['rsi'] < 60
-            near_ema_ok = price <= (data['ema_20'] * 1.001) # Near or below EMA 20
+            near_ema_ok = price <= (data['ema_20'] * 1.001)
             
             if not self.bot.in_position:
                 if trend_ok and pullback_ok and near_ema_ok:
@@ -201,19 +218,3 @@ class StrategyManager:
         except Exception as e:
             self.db.rollback()
             self.log_error(f"Tick Crash: {str(e)}")
-
-    def record_trade_to_file(self, action, price, pnl=0, type="INFO"):
-        try:
-            new_entry = {
-                "timestamp": datetime.now(timezone.utc).isoformat(), 
-                "action": action, 
-                "type": type, 
-                "price": f"{price:,.2f}", 
-                "pnl": f"{pnl:+.2f}"
-            }
-            history = []
-            if os.path.exists(self.history_file):
-                with open(self.history_file, "r") as f: history = json.load(f)
-            history.insert(0, new_entry)
-            with open(self.history_file, "w") as f: json.dump(history[:30], f, indent=4)
-        except: pass

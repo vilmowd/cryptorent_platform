@@ -6,9 +6,27 @@ const BotAnalytics = ({ botId, onBack }) => {
   const [data, setData] = useState(null);
   const [trades, setTrades] = useState([]); 
   const [error, setError] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false); // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+
+  const getEngineStatus = (lastUpdate) => {
+    if (!lastUpdate) return { label: 'OFFLINE', color: '#94a3b8' }; // Gray
+    
+    const lastSeen = new Date(lastUpdate).getTime();
+    const now = new Date().getTime();
+    const diffSeconds = (now - lastSeen) / 1000;
+
+    if (diffSeconds < 40) {
+      return { label: 'LIVE', color: '#4ade80' }; // Bright Green
+    } else if (diffSeconds < 120) {
+      return { label: 'DELAYED', color: '#facc15' }; // Yellow
+    } else {
+      return { label: 'CRASHED', color: '#f87171' }; // Red
+    }
+  };
+
+  const status = getEngineStatus(data.updated_at);
 
   const fetchData = useCallback(async () => {
     if (!botId) return;
@@ -31,7 +49,6 @@ const BotAnalytics = ({ botId, onBack }) => {
       
       if (resTrades.ok) {
         const tradesData = await resTrades.json();
-        // Backend now returns a list of objects with {action, type, price, pnl}
         setTrades(Array.isArray(tradesData) ? tradesData : []);
       }
       setError(null);
@@ -54,23 +71,25 @@ const BotAnalytics = ({ botId, onBack }) => {
   
   return (
     <div className="analytics-container">
+      {/* --- HEADER --- */}
       <div className="analytics-header">
         <button onClick={onBack} className="back-btn">← EXIT TERMINAL</button>
         
         <div className="header-center">
             <h1>Engine Transparency: {data.symbol || `Bot #${botId}`}</h1>
-            {/* NEW INFO BUTTON */}
             <button className="info-trigger-btn" onClick={() => setIsModalOpen(true)}>
               ℹ️ HOW IT WORKS
             </button>
         </div>
 
-        <div className="sync-status">
-            Last Heartbeat: {data.last_sync ? new Date(data.last_sync).toLocaleTimeString() : "STANDBY"}
+        <div className="status-badge" style={{ color: status.color }}>
+          <span className={`status-dot ${status.label === 'LIVE' ? 'active' : ''}`} 
+                style={{ backgroundColor: status.color }}></span>
+          {status.label}
         </div>
       </div>
 
-      {/* STRATEGY MODAL */}
+      {/* --- STRATEGY INFO MODAL --- */}
       <StrategyInfoModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
@@ -78,6 +97,31 @@ const BotAnalytics = ({ botId, onBack }) => {
       />
 
       <div className="brain-grid">
+        
+        {/* --- NEW: CURRENT MISSION CARD --- */}
+        <div className="logic-card mission-card">
+          <h3>Current Mission</h3>
+          <div className="mission-content">
+            {data.in_position ? (
+              <div className="mission-status selling">
+                <span className="pulse red">●</span>
+                <div>
+                  <strong>DEFENDING POSITION</strong>
+                  <p>Monitoring Exit: TP ${(data.buy_price * (data.take_profit || 1.05)).toLocaleString()}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="mission-status buying">
+                <span className="pulse green">●</span>
+                <div>
+                  <strong>HUNTING ENTRY</strong>
+                  <p>Scanning for RSI Pullback & EMA Dip</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* --- STRATEGY LOGIC CARD --- */}
         <div className="logic-card">
           <h3>Live Strategy Logic</h3>

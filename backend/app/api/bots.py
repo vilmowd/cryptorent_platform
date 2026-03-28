@@ -56,7 +56,6 @@ async def create_bot(bot_data: dict, db: Session = Depends(get_db), current_user
 
 @router.get("/{bot_id}/stats")
 async def get_bot_stats(bot_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # 1. Fetch the bot and ensure it belongs to the current user
     bot = db.query(BotInstance).filter(
         BotInstance.id == bot_id, 
         BotInstance.user_id == current_user.id
@@ -65,39 +64,40 @@ async def get_bot_stats(bot_id: int, db: Session = Depends(get_db), current_user
     if not bot:
         raise HTTPException(status_code=404, detail="Bot not found")
     
-    # 2. Extract values with safe defaults for the UI
+    # 1. Define the logic thresholds (Synced with StrategyManager.py)
+    # We use the same numbers here that the bot uses to trade
     price = bot.last_known_price or 0
     rsi = bot.last_rsi or 0
     ema200 = bot.last_ema_200 or 0
     ema20 = bot.last_ema_20 or 0
 
-    # 3. Return the payload exactly as the React BotCard expects it
+    # 2. Return the payload with ALL fields required by the new React Modal
     return {
         "id": bot.id,
         "symbol": bot.symbol,
         "is_running": bot.is_running,
+        "in_position": bot.in_position,  # Crucial for "Current Mission" card
+        "buy_price": bot.buy_price,      # Crucial for Target calculations
         "daily_pnl": f"${bot.daily_pnl:,.2f}",
+        "daily_pnl_value": bot.daily_pnl, # Numeric version for safety gate check
         "current_price": price,
         "rsi_value": rsi,
-        
-        # This ISO format allows the React Date() constructor to work correctly
+        "last_ema_200": ema200,          # Sent to UI for Modal info
+        "last_ema_20": ema20,            # Sent to UI for Modal info
         "last_sync": bot.updated_at.isoformat() if bot.updated_at else None,
         
-        # --- TELEGRAM PERSISTENCE FIX ---
-        # These keys must match the state setters in your BotCard.js
-        "telegram_bot_token": bot.telegram_bot_token,
-        "telegram_chat_id": bot.telegram_chat_id,
+        # Settings for "Safety Gates" visibility
+        "min_trade_price": bot.min_trade_price,
+        "max_trade_price": bot.max_trade_price,
+        "max_daily_loss": bot.max_daily_loss,
+        "take_profit": bot.take_profit or 1.05, # Default to 5% if none set
+        "stop_loss": bot.stop_loss or 0.98,     # Default to 2% if none set
         
-        # --- THRESHOLD PERSISTENCE FIX ---
-        "min_trade_price": bot.min_trade_price or 0.0,
-        "max_trade_price": bot.max_trade_price or 999999.0,
-        "max_daily_loss": bot.max_daily_loss or 0.0,
-        
-        # --- ANALYTICS LOGIC ---
+        # This aligns the UI checkmarks exactly with the Python run_tick() logic
         "decision_factors": {
             "is_trend_ok": price > ema200 if price and ema200 else False,
-            "is_rsi_pullback": bot.rsi_low < rsi < bot.rsi_high if rsi else False,
-            "is_near_ema": price <= ema20 if price and ema20 else False
+            "is_rsi_pullback": 30 < rsi < 60 if rsi else False,
+            "is_near_ema": price <= (ema20 * 1.001) if price and ema20 else False
         }
     }
 
@@ -189,3 +189,42 @@ async def get_bot_logs(bot_id: int, current_user: User = Depends(get_current_use
         return {"logs": ["System clean. No logs detected."]}
     with open(log_path, "r") as f:
         return {"logs": f.readlines()[-50:]}
+    
+
+@router.post("/{bot_id}/force-trade")
+async def force_trade(bot_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    bot = db.query(BotInstance).filter(BotInstance.id == bot_id, BotInstance.user_id == current_user.id).first()
+    if not bot: raise HTTPException(status_code=404, detail="Bot not found")
+    
+    # We set a flag in the DB that the StrategyManager will see on the next tick
+    bot.force_action = "SELL" if bot.in_position else "BUY"
+    db.commit()
+    
+    return {"status": "signal_sent", "action": bot.force_action}
+
+
+@router.post("/panic-close-all")
+async def panic_close_all(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # 1. Find all bots for this user that have an active position
+    active_positions = db.query(BotInstance).filter(
+        BotInstance.user_id == current_user.id,
+        BotInstance.in_position == True
+    ).all()
+
+    if not active_positions:
+        return {"message": "No active positions found. System is already clear."}
+
+    # 2. Mark every bot for a Force Sell
+    for bot in active_positions:
+        bot.force_action = "SELL"
+    
+    try:
+        db.commit()
+        return {
+            "status": "PANIC_INITIATED",
+            "count": len(active_positions),
+            "message": f"Emergency sell signals sent for {len(active_positions)} bots."
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Panic command failed to persist.")
