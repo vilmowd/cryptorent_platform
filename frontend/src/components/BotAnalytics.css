@@ -627,3 +627,51 @@
     margin-bottom: 10px;
     text-align: center;
 }
+
+
+/* --- Emergency Reset Section --- */
+.emergency-reset {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #1e293b; /* Matches your slate-800 border */
+  text-align: center;
+}
+
+.emergency-reset-btn {
+  background: transparent;
+  border: none;
+  color: #64748b; /* Slate-500 */
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 auto;
+  transition: all 0.2s ease;
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+/* Hover state: Turns red to signal "Danger/Reset" */
+.emergency-reset-btn:hover {
+  color: #f87171; /* Red-400 */
+  background: rgba(248, 113, 113, 0.05);
+}
+
+.emergency-reset-btn:active {
+  transform: scale(0.98);
+}
+
+/* Optional: Add a subtle pulse to the icon on hover */
+.emergency-reset-btn:hover span {
+  animation: rotate-reset 1s ease-in-out;
+}
+
+@keyframes rotate-reset {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}

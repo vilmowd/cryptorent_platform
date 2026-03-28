@@ -146,16 +146,17 @@ const StrategyInfoModal = ({ isOpen, onClose, data, onForceTrade }) => {
             )}
           </section>
 
-          <div className="emergency-reset mt-4 pt-4 border-t border-slate-800">
+          {/* --- 6. EMERGENCY RESET --- */}
+          <div className="emergency-reset">
             <button 
-              className="text-[10px] text-slate-500 hover:text-red-400 transition-colors"
+              className="emergency-reset-btn"
               onClick={() => {
                 if(window.confirm("Manual Reset will clear today's PnL record. Continue?")) {
                   onResetPnL(data.id);
                 }
               }}
             >
-              ♻️ Manual PnL Reset (Override Safety Gates)
+              <span>♻️</span> Manual PnL Reset (Override Safety Gates)
             </button>
           </div>
 
