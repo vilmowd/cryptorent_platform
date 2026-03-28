@@ -198,7 +198,13 @@ const BotCard = ({ botId, onNavigate, onBotDeleted, onToggleAttempt }) => {
     }
   };
 
-  if (loading || !bot) return <div className="bot-card loading">INITIALIZING...</div>;
+  // 1. If the bot was purged, return null immediately so it vanishes
+  if (!bot && !loading) return null;
+
+  // 2. Only show the loading state if we are truly waiting for the first fetch
+  if (loading) {
+    return <div className="bot-card loading">INITIALIZING...</div>;
+  }
 
   return (
     <div className={`bot-card ${isStalled ? 'stalled-border' : ''}`}>

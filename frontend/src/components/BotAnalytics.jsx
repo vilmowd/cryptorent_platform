@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './BotAnalytics.css'; 
 import StrategyInfoModal from './StrategyInfoModal';
+import TradeHistory from '../components/TradeHistory';
 
 const BotAnalytics = ({ botId, onBack }) => {
   const [data, setData] = useState(null);
