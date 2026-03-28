@@ -95,10 +95,21 @@ function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('payment') === 'success') {
-      setShowSuccessModal(true);
-      fetchData(); 
-      window.history.replaceState({}, document.title, "/");
-      setCurrentPath("/");
+      // 1. Ensure we treat the user as logged in immediately if the token exists
+      const token = localStorage.getItem('token');
+      if (token) {
+        setIsLoggedIn(true);
+        setShowSuccessModal(true);
+        fetchData(); 
+        
+        // 2. Clean up the URL but STAY on the current path logic
+        window.history.replaceState({}, document.title, "/");
+        setCurrentPath("/");
+      } else {
+        // If they paid but somehow lost their token (e.g., cleared cache), 
+        // they HAVE to log in again.
+        setCurrentPath("/");
+      }
     }
   }, []);
 
