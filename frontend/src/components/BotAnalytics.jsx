@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import './BotAnalytics.css'; 
 import StrategyInfoModal from './StrategyInfoModal';
 
+
 const BotAnalytics = ({ botId, onBack }) => {
   const [data, setData] = useState(null);
   const [trades, setTrades] = useState([]); 
@@ -12,18 +13,29 @@ const BotAnalytics = ({ botId, onBack }) => {
 
   // --- HEARTBEAT LOGIC ---
   const getEngineStatus = (lastUpdate) => {
-    if (!lastUpdate) return { label: 'OFFLINE', color: '#94a3b8' }; // Gray
+    if (!lastUpdate) return { label: 'OFFLINE', color: '#94a3b8' };
     
-    const lastSeen = new Date(lastUpdate).getTime();
+    // 1. Force the string into a UTC Date object
+    // Adding 'Z' ensures the browser treats it as UTC regardless of your local settings
+    const syncStr = lastUpdate.endsWith('Z') ? lastUpdate : `${lastUpdate}Z`;
+    const lastSeen = new Date(syncStr).getTime();
+    
+    // 2. Get current UTC time (not local time)
     const now = new Date().getTime();
-    const diffSeconds = (now - lastSeen) / 1000;
+    
+    // 3. Calculate absolute difference
+    const diffSeconds = Math.abs(now - lastSeen) / 1000;
 
-    if (diffSeconds < 45) {
-      return { label: 'LIVE', color: '#4ade80' }; // Bright Green
-    } else if (diffSeconds < 120) {
-      return { label: 'DELAYED', color: '#facc15' }; // Yellow
+    console.log("Real-time Diff (Seconds):", diffSeconds);
+
+    // 4. Be slightly more generous with the timing
+    // Since the loop is 15s and network lag exists, 60s is a safe "LIVE" window
+    if (diffSeconds < 60) {
+      return { label: 'LIVE', color: '#4ade80' };
+    } else if (diffSeconds < 180) {
+      return { label: 'DELAYED', color: '#facc15' };
     } else {
-      return { label: 'CRASHED', color: '#f87171' }; // Red
+      return { label: 'CRASHED', color: '#f87171' };
     }
   };
 
