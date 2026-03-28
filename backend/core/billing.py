@@ -15,8 +15,6 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 # --- CONFIGURATION ---
-# In Railway, add FRONTEND_URL (e.g., https://your-site.up.railway.app)
-# Defaulting to localhost:3000 for local development
 SITE_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 @router.post("/create-portal")
@@ -25,14 +23,16 @@ async def create_stripe_portal(
     current_user: User = Depends(get_current_user)
 ):
     """Generates a link for users to manage cards/cancel subs on Stripe's site."""
-    current_user = db.merge(current_user) # FIX: Prevents 'not persistent' error
+    current_user = db.merge(current_user) 
     try:
         if not current_user.stripe_customer_id:
             raise HTTPException(status_code=400, detail="No active Stripe customer found.")
 
         session = stripe.billing_portal.Session.create(
             customer=current_user.stripe_customer_id,
-            return_url=f"{SITE_URL}/billing", # UPDATED: Dynamic URL
+            # Redirecting to /billing ensures the React app is already in an 
+            # authenticated view context when they return.
+            return_url=f"{SITE_URL}/billing", 
         )
         return {"url": session.url}
     except Exception as e:
@@ -58,11 +58,13 @@ async def create_checkout(
 
         session = stripe.checkout.Session.create(
             customer=current_user.stripe_customer_id,
-            client_reference_id=str(current_user.id), # <--- ADD THIS LINE
+            client_reference_id=str(current_user.id),
             payment_method_types=['card'],
             line_items=[{'price': price_id, 'quantity': 1}],
             mode='subscription',
-            success_url=f"{SITE_URL}/?payment=success",
+            # UPDATED: Sending to /billing?payment=success prevents the 
+            # root path (/) from defaulting to the login screen.
+            success_url=f"{SITE_URL}/billing?payment=success",
             cancel_url=f"{SITE_URL}/billing",
         )
         return {"url": session.url}
@@ -70,7 +72,7 @@ async def create_checkout(
         print(f"STRIPE ERROR: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     
-# --- THE WEBHOOK RECEIVER (THE ENFORCER) ---
+# --- THE WEBHOOK RECEIVER ---
 @router.post("/stripe-webhook")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     payload = await request.body()
@@ -81,27 +83,22 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
     except Exception as e:
-        # Return a 400 so Stripe knows the signature was bad
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    # 1. SUCCESSFUL SIGNUP
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        
-        # FIND USER BY THE ID WE PASSED IN CHECKOUT
         user_id = session.get('client_reference_id')
         
         if user_id:
             user = db.query(User).filter(User.id == int(user_id)).first()
             if user:
                 user.is_subscription_active = True
-                user.stripe_customer_id = session.get('customer') # Ensure ID is saved
+                user.stripe_customer_id = session.get('customer')
                 user.subscription_expires_at = datetime.now(timezone.utc) + timedelta(days=30)
                 user.unpaid_fees = 0.0 
                 db.commit()
                 print(f"✅ User {user.email} ACTIVATED.")
 
-    # 2. MONTHLY RENEWAL (Uses customer_id because it's already established)
     elif event['type'] == 'invoice.paid':
         invoice = event['data']['object']
         customer_id = invoice.get('customer')

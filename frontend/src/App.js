@@ -92,32 +92,41 @@ function App() {
     window.scrollTo(0, 0);
   };
 
+  // 1. HANDLES STRIPE SUCCESS REDIRECT
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    
     if (params.get('payment') === 'success') {
-      // 1. Ensure we treat the user as logged in immediately if the token exists
       const token = localStorage.getItem('token');
+      
       if (token) {
+        // Force session to active so the Login guard doesn't trigger
         setIsLoggedIn(true);
         setShowSuccessModal(true);
         fetchData(); 
         
-        // 2. Clean up the URL but STAY on the current path logic
+        // Clean up URL and move view to Dashboard internally
         window.history.replaceState({}, document.title, "/");
         setCurrentPath("/");
       } else {
-        // If they paid but somehow lost their token (e.g., cleared cache), 
-        // they HAVE to log in again.
+        // Fallback: If token is missing, we must go to login
         setCurrentPath("/");
+        setIsLoggedIn(false);
       }
     }
-  }, []);
+  }, [currentPath]); // Re-run if path changes to catch the /billing landing
 
+  // 2. HANDLES ROUTING AND INITIAL DATA FETCH
   useEffect(() => {
     const handleLocationChange = () => setCurrentPath(window.location.pathname);
     window.addEventListener('popstate', handleLocationChange);
-    if (isLoggedIn) fetchData();
-    else setLoading(false);
+    
+    if (isLoggedIn) {
+      fetchData();
+    } else {
+      setLoading(false);
+    }
+
     return () => window.removeEventListener('popstate', handleLocationChange);
   }, [isLoggedIn]);
 
