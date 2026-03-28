@@ -17,7 +17,6 @@ class BotInstance(Base):
     # --- Connection & Identity ---
     platform = Column(String) 
     symbol = Column(String, default="BTC/USD")
-    # Using String(500) to ensure encrypted hashes have enough space
     encrypted_api_key = Column(String(500))
     encrypted_secret = Column(String(500))
     encrypted_passphrase = Column(String(500), nullable=True) 
@@ -26,12 +25,12 @@ class BotInstance(Base):
     trade_amount_usd = Column(Float, default=100.0)
     rsi_low = Column(Integer, default=35)
     rsi_high = Column(Integer, default=65)
-    take_profit = Column(Float, default=1.03)  # 3% profit
-    stop_loss = Column(Float, default=0.98)    # 2% loss
+    take_profit = Column(Float, default=1.03)
+    stop_loss = Column(Float, default=0.98)
     
     # --- Price Guardrails (Safety Thresholds) ---
-    min_trade_price = Column(Float, default=0.0)      # Floor
-    max_trade_price = Column(Float, default=999999.0) # Ceiling
+    min_trade_price = Column(Float, default=0.0)
+    max_trade_price = Column(Float, default=999999.0)
     
     # --- Risk Controls ---
     max_daily_loss = Column(Float, default=50.0)      
@@ -46,6 +45,11 @@ class BotInstance(Base):
     daily_pnl = Column(Float, default=0.0)
     consecutive_losses = Column(Integer, default=0)
     
+    # --- EMERGENCY & MANUAL OVERRIDE ---
+    # This is the missing piece that caused your error!
+    # Values: "BUY", "SELL", or None
+    force_action = Column(String, nullable=True) 
+
     # Standardized date string for easier daily resets
     last_trade_day = Column(String, default=lambda: str(datetime.now(timezone.utc).date()))
     last_loss_time = Column(DateTime, nullable=True)
@@ -60,7 +64,5 @@ class BotInstance(Base):
     telegram_bot_token = Column(String, nullable=True)
     telegram_chat_id = Column(String, nullable=True)
     
-    # --- FIXED HEARTBEAT ---
-    # We remove default=func.now() so it starts as NULL.
-    # This allows the StrategyManager to detect 'None' and send the Startup Alert.
+    # --- HEARTBEAT ---
     updated_at = Column(DateTime, nullable=True)
