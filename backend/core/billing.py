@@ -4,11 +4,12 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from models.user import User
+from app.api.auth import get_current_user
 from datetime import datetime, timedelta, timezone
 from paddle_billing import Client, Environment, Options
 
-# REVERTED: Prefix is back inside the router definition
-router = APIRouter(prefix="/billing", tags=["Billing"])
+# We remove the prefix here so it's managed centrally in main.py
+router = APIRouter(tags=["Billing"])
 
 # --- CONFIGURATION ---
 PADDLE_API_KEY = os.getenv("PADDLE_API_KEY", "").strip()
@@ -22,8 +23,10 @@ paddle_client = Client(
 )
 
 async def send_telegram_alert(message: str):
+    """Helper to send alerts to your Telegram bot."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         return
+    
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     async with httpx.AsyncClient() as client:
         try:
@@ -31,6 +34,34 @@ async def send_telegram_alert(message: str):
         except Exception as e:
             print(f"❌ Telegram Error: {e}")
 
+# --- 1. FRONTEND CONFIG ENDPOINT ---
+@router.get("/config")
+async def get_paddle_config(current_user: User = Depends(get_current_user)):
+    """Provides keys for the React Paddle Checkout."""
+    return {
+        "clientToken": os.getenv("PADDLE_CLIENT_TOKEN", "").strip(),
+        "priceId": os.getenv("PADDLE_PRICE_ID", "").strip(),
+        "userId": str(current_user.id),
+        "userEmail": current_user.email
+    }
+
+# --- 2. CUSTOMER PORTAL ENDPOINT ---
+@router.post("/create-portal")
+async def create_paddle_portal(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Generates the link for users to manage subscriptions."""
+    current_user = db.merge(current_user)
+    customer_id = current_user.stripe_customer_id
+    
+    if not customer_id:
+        raise HTTPException(status_code=400, detail="No active subscription found.")
+
+    portal_url = f"https://buy.paddle.com/customer-receipt/portal-link/{customer_id}"
+    return {"url": portal_url}
+
+# --- 3. WEBHOOK RECEIVER ---
 @router.post("/paddle-webhook")
 async def paddle_webhook_receiver(request: Request, db: Session = Depends(get_db)):
     payload = await request.body()
@@ -45,7 +76,7 @@ async def paddle_webhook_receiver(request: Request, db: Session = Depends(get_db
             PADDLE_WEBHOOK_SECRET, 
             signature
         )
-    except Exception:
+    except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid signature")
 
     event_type = event.event_type
@@ -63,6 +94,14 @@ async def paddle_webhook_receiver(request: Request, db: Session = Depends(get_db
                 user.subscription_expires_at = datetime.now(timezone.utc) + timedelta(days=31)
                 user.unpaid_fees = 0.0 
                 db.commit()
-                await send_telegram_alert(f"💰 *New Subscription Active!*")
+
+                await send_telegram_alert(f"💰 *New Subscription*: `{user.email}` is now LIVE.")
     
+    elif event_type == "subscription.canceled":
+        user = db.query(User).filter(User.stripe_customer_id == data.customer_id).first()
+        if user:
+            user.is_subscription_active = False
+            db.commit()
+            await send_telegram_alert(f"❌ *Cancelled*: `{user.email}` deactivated.")
+
     return {"status": "success"}

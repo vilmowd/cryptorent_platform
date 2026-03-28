@@ -48,12 +48,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- REVERTED ROUTER REGISTRATION ---
+# --- ROUTER REGISTRATION ---
 app.include_router(auth.router, prefix="/auth")
 app.include_router(bots.router)
 app.include_router(dashboard.router)
 app.include_router(trades.router)
-app.include_router(billing.router) # Back to the original call
+
+# THE FIX: Add the prefix here because it was removed from core/billing.py
+app.include_router(billing.router, prefix="/billing") 
+
 app.include_router(webhooks.router)
 
 @app.get("/")
