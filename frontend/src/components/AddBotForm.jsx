@@ -12,12 +12,37 @@ const AddBotForm = ({ onBotCreated }) => { // Added the prop to refresh the bot 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setStatus({ type: 'info', message: 'Encrypting and saving...' });
+    // 1. Clean the keys immediately
+    const cleanKey = apiKey.trim();
+    const cleanSecret = apiSecret.trim();
+
+    setStatus({ type: 'info', message: 'Validating API keys with exchange...' });
 
     const token = localStorage.getItem('token');
 
     try {
-      // UPDATED: Now uses the dynamic API_BASE_URL
+      // --- STAGE 1: VALIDATION ---
+      const testResponse = await fetch(`${API_BASE_URL}/bots/test-keys`, { 
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          platform: platform,
+          api_key: cleanKey,
+          api_secret: cleanSecret
+        }),
+      });
+
+      if (!testResponse.ok) {
+        const testErr = await testResponse.json();
+        throw new Error(testErr.detail || 'Exchange rejected these keys. Check permissions.');
+      }
+
+      // --- STAGE 2: ACTUAL SAVING ---
+      setStatus({ type: 'info', message: 'Keys verified! Saving bot...' });
+      
       const response = await fetch(`${API_BASE_URL}/bots/settings/new`, { 
         method: 'POST',
         headers: {
@@ -26,23 +51,20 @@ const AddBotForm = ({ onBotCreated }) => { // Added the prop to refresh the bot 
         },
         body: JSON.stringify({
           platform: platform,
-          api_key: apiKey,
-          api_secret: apiSecret,
+          api_key: cleanKey,
+          api_secret: cleanSecret,
           symbol: "BTC/USD" 
         }),
       });
 
       if (response.ok) {
-        setStatus({ type: 'success', message: 'Bot initialized! You can now start it from the card.' });
+        setStatus({ type: 'success', message: 'Bot verified and initialized!' });
         setApiKey('');
         setApiSecret('');
-        
-        // If a refresh function was passed down from App.js, call it
         if (onBotCreated) onBotCreated(); 
-        
       } else {
         const err = await response.json();
-        throw new Error(err.detail || 'Failed to initialize bot');
+        throw new Error(err.detail || 'Failed to save bot settings');
       }
     } catch (error) {
       setStatus({ type: 'error', message: error.message });

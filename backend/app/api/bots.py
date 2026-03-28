@@ -7,6 +7,7 @@ from models.bot import BotInstance
 from models.user import User
 from api.auth import get_current_user 
 from datetime import datetime, timezone
+import ccxt
 
 router = APIRouter(prefix="/bots", tags=["Bots"])
 
@@ -62,6 +63,36 @@ async def create_bot(bot_data: dict, db: Session = Depends(get_db), current_user
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    
+
+@router.post("/bots/test-keys")
+async def test_keys(data: dict):
+    platform = data.get("platform")
+    api_key = data.get("api_key", "").strip()
+    api_secret = data.get("api_secret", "").strip()
+
+    if platform != "kraken":
+        raise HTTPException(status_code=400, detail="Only Kraken is supported for testing currently.")
+
+    try:
+        # Initialize a temporary exchange object
+        exchange = ccxt.kraken({
+            'apiKey': api_key,
+            'secret': api_secret,
+        })
+        
+        # Attempt to fetch balance - this is the "Gold Standard" test
+        # If keys are wrong or missing "Query Funds" permission, this will throw an error
+        exchange.fetch_balance()
+        
+        return {"status": "success", "message": "Keys are valid"}
+
+    except ccxt.AuthenticationError:
+        raise HTTPException(status_code=401, detail="Invalid API Key or Secret.")
+    except ccxt.PermissionError:
+        raise HTTPException(status_code=403, detail="Key is valid, but 'Query Funds' permission is missing.")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Exchange Error: {str(e)}")
 
 @router.get("/{bot_id}/stats")
 async def get_bot_stats(bot_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
