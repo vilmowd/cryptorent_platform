@@ -1,11 +1,13 @@
 import ccxt
 from core.security import decrypt_key 
+import os
 
 def initialize_exchange(bot):
     try:
         # 1. Decrypt (Ensure these are returning clean strings)
         api_key = decrypt_key(bot.encrypted_api_key).strip()
         secret = decrypt_key(bot.encrypted_secret).strip()
+        print(f"DEBUG: Master Key Loaded: {os.getenv('MASTER_KEY') is not None}")
         
         # 2. Check for Kraken-specific naming
         platform_name = bot.platform.lower().strip()

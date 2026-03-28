@@ -42,9 +42,14 @@ const BotAnalytics = ({ botId, onBack }) => {
         setData(statsData);
       }
       
+      // Replace the trade logic in your fetchData function:
       if (resTrades.ok) {
         const tradesData = await resTrades.json();
-        setTrades(Array.isArray(tradesData) ? tradesData : []);
+        // Look for the array either directly or inside a 'trades' key
+        const actualTrades = Array.isArray(tradesData) 
+          ? tradesData 
+          : (tradesData.trades || []);
+        setTrades(actualTrades);
       }
       setError(null);
     } catch (err) {
@@ -162,51 +167,13 @@ const BotAnalytics = ({ botId, onBack }) => {
             <strong style={{color: '#60a5fa'}}>{data.rsi_value ? data.rsi_value.toFixed(2) : '---'}</strong>
           </div>
         </div>
-
-        {/* --- EXECUTION HISTORY CARD --- */}
         <div className="history-card full-width">
-          <h3>Execution Ledger (Last 30 Trades)</h3>
-          <div className="table-responsive">
-            <table className="trade-table">
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Action</th>
-                  <th>Type</th>
-                  <th>Price</th>
-                  <th>PnL ($)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {trades.length > 0 ? trades.map((trade, i) => {
-                  const isSell = trade.type?.toUpperCase() === 'SELL';
-                  const pnlValue = parseFloat(trade.pnl);
-                  
-                  return (
-                    <tr key={i} className={isSell ? 'trade-sell' : 'trade-buy'}>
-                      <td>{trade.timestamp ? new Date(trade.timestamp).toLocaleTimeString() : '---'}</td>
-                      <td className="action-cell">{trade.action}</td>
-                      <td><span className={`badge ${trade.type?.toLowerCase() || ''}`}>{trade.type}</span></td>
-                      <td>${trade.price}</td>
-                      <td style={{ 
-                        color: pnlValue > 0 ? '#4ade80' : (pnlValue < 0 ? '#f87171' : '#94a3b8'),
-                        fontWeight: 'bold' 
-                      }}>
-                        {trade.pnl !== "0.00" ? `$${trade.pnl}` : '---'}
-                      </td>
-                    </tr>
-                  );
-                }) : (
-                  <tr>
-                    <td colSpan="5" style={{textAlign: 'center', padding: '40px', color: '#64748b'}}>
-                      No trade execution data found for this session.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+        <h3>Execution Ledger (Last 30 Trades)</h3>
+        <div className="table-responsive">
+          {/* Use the same component the Dashboard uses! */}
+          <TradeHistory botId={botId} /> 
         </div>
+      </div>  
       </div>
     </div>
   );
