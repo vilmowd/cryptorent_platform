@@ -65,7 +65,7 @@ async def create_bot(bot_data: dict, db: Session = Depends(get_db), current_user
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     
 
-@router.post("/bots/test-keys")
+@router.post("/test-keys")
 async def test_keys(data: dict):
     platform = data.get("platform")
     api_key = data.get("api_key", "").strip()
@@ -300,7 +300,7 @@ def reset_bot_pnl(bot_id: int, db: Session = Depends(get_db)):
     return {"message": f"Daily PnL for Bot {bot_id} has been reset to $0.00"}
 
 
-@router.delete("/bots/{bot_id}")
+@router.delete("/{bot_id}")
 def delete_bot(bot_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     bot = db.query(BotInstance).filter(
         BotInstance.id == bot_id, 
@@ -310,15 +310,10 @@ def delete_bot(bot_id: int, db: Session = Depends(get_db), current_user = Depend
     if not bot:
         raise HTTPException(status_code=404, detail="Bot not found")
 
-    # Safety: If engine is still flagged as running, force it off in DB first
-    # This prevents the loop in start_engine() from re-binding to it
     if bot.is_running:
         bot.is_running = False
-        db.flush() # Push the 'stop' to DB immediately
+        db.flush() 
 
-    # Final Purge
-    
     db.delete(bot)
     db.commit()
-    
     return {"message": "Bot and associated data purged successfully"}
