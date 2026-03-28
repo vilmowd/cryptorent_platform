@@ -7,6 +7,7 @@ import BillingDetails from './components/BillingDetails.jsx';
 import BotAnalytics from './components/BotAnalytics.jsx'; 
 import SiteInfo from './components/SiteInfo.jsx';
 import './App.css';
+import LegalTerms from './components/LegalTerms.jsx';
 
 // --- CONFIGURATION ---
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
@@ -179,17 +180,24 @@ function App() {
 
       <main className="main-content">
         {/* --- VIEW ROUTER --- */}
-        {currentPath === '/billing' ? (
+        {/* Check for the direct /terms path first */}
+        {window.location.pathname === '/terms' || currentPath === '/terms' ? (
+          <div className="terms-view-full" style={{ padding: '40px 20px', maxWidth: '800px', margin: '0 auto' }}>
+             <LegalTerms />
+             <button onClick={() => navigateTo('/')} className="btn-logout" style={{marginTop: '30px'}}>
+               ← Back to Command Center
+             </button>
+          </div>
+        ) : currentPath === '/billing' ? (
           <div className="billing-view-container">
             <BillingDetails user={userData} />
             <button onClick={() => navigateTo('/')} className="btn-logout" style={{marginTop: '20px'}}>← Back to Command Center</button>
           </div>
         ) : currentPath === 'analytics' ? (
-          /* --- ANALYTICS VIEW --- */
           <div className="analytics-view-full">
              <BotAnalytics 
-               botId={selectedBotId} 
-               onBack={() => navigateTo('/')} 
+                botId={selectedBotId} 
+                onBack={() => navigateTo('/')} 
              />
           </div>
         ) : (
@@ -240,7 +248,8 @@ function App() {
         )}
       </main>
 
-      <SiteInfo />
+      {/* Pass navigateTo so footer links work */}
+      <SiteInfo onNavigate={navigateTo} />
 
       {/* --- MOBILE BOTTOM NAVIGATION --- */}
       <footer className="mobile-tab-bar">
@@ -268,5 +277,4 @@ function App() {
     </div>
   );
 }
-
 export default App;
