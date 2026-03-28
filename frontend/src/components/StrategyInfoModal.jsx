@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const StrategyInfoModal = ({ isOpen, onClose, data, onForceTrade }) => {
+const StrategyInfoModal = ({ isOpen, onClose, data, onForceTrade, onResetPnL }) => {
   const [confirmMode, setConfirmMode] = useState(false);
 
   if (!isOpen) return null;
@@ -42,23 +42,33 @@ const StrategyInfoModal = ({ isOpen, onClose, data, onForceTrade }) => {
                </div>
                <div className="inv-row">
                  <span>Current Asset:</span>
-                 <strong>{data.in_position ? `1.0 ${data.symbol.split('/')[0]}` : 'NONE'}</strong>
+                 {/* UPDATED: Uses real position size from engine */}
+                 <strong>{data.in_position ? `${data.position_size?.toFixed(6)} ${data.symbol.split('/')[0]}` : 'NONE'}</strong>
                </div>
                <div className="inv-row">
                  <span>Market Value:</span>
-                 <strong>${(data.current_price * (data.in_position ? 1 : 0)).toLocaleString()}</strong>
+                 {/* UPDATED: Uses real-time calculation based on holdings */}
+                 <strong>${(data.current_price * (data.position_size || 0)).toLocaleString(undefined, {minimumFractionDigits: 2})}</strong>
                </div>
-               {/* New Daily PnL Row - Resets at Midnight via Python Engine */}
+               
                <div className="inv-row border-t border-slate-700 mt-2 pt-2">
                  <span>Today's Performance:</span>
                  <strong className={data.daily_pnl_value >= 0 ? 'text-buy' : 'text-red-400'}>
                    {data.daily_pnl}
                  </strong>
                </div>
+
+               {/* NEW: Floating PnL Row */}
+               <div className="inv-row">
+                 <span>Unrealized (Live):</span>
+                 <strong className={data.unrealized_pnl >= 0 ? 'text-buy' : 'text-red-400'}>
+                   {data.unrealized_pnl_str || '$0.00'}
+                 </strong>
+               </div>
             </div>
           </section>
 
-          {/* --- 2. RSI VISUALIZER (Dynamic Context) --- */}
+          {/* --- 2. RSI VISUALIZER --- */}
           <section className="rsi-visualizer">
             <h4>Live RSI: {rsi.toFixed(2)}</h4>
             <div className="rsi-bar-container">
@@ -77,7 +87,7 @@ const StrategyInfoModal = ({ isOpen, onClose, data, onForceTrade }) => {
             </div>
           </section>
 
-          {/* --- 3. SAFETY GATES (Dynamic Context) --- */}
+          {/* --- 3. SAFETY GATES --- */}
           <section className="safety-gates">
             <h4>🛡️ Safety Gates</h4>
             <div className={`gate-item ${isBelowMaxLoss ? 'pass' : 'blocked'}`}>
@@ -98,7 +108,7 @@ const StrategyInfoModal = ({ isOpen, onClose, data, onForceTrade }) => {
 
           <hr className="divider" />
 
-          {/* --- 4. LIVE TARGETS (Only shows when in position) --- */}
+          {/* --- 4. LIVE TARGETS --- */}
           {data.in_position && (
             <section className="live-targets">
               <h4>🎯 Active Trade Targets</h4>
@@ -120,7 +130,7 @@ const StrategyInfoModal = ({ isOpen, onClose, data, onForceTrade }) => {
             </section>
           )}
 
-          {/* --- 5. MANUAL OVERRIDE (Force Trade) --- */}
+          {/* --- 5. MANUAL OVERRIDE --- */}
           <section className="manual-override">
             <h4>⚡ Manual Intervention</h4>
             {!confirmMode ? (
@@ -161,7 +171,7 @@ const StrategyInfoModal = ({ isOpen, onClose, data, onForceTrade }) => {
           </div>
 
           <div className="footer-note">
-             <p><em>Engine Heartbeat: 15s. Manual trades execute on next tick.</em></p>
+              <p><em>Engine Heartbeat: 15s. Manual trades execute on next tick.</em></p>
           </div>
         </div>
       </div>

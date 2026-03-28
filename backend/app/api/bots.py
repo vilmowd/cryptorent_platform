@@ -18,7 +18,15 @@ def encrypt_key(key: str):
 @router.get("/my-bots")
 async def list_user_bots(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     bots = db.query(BotInstance).filter(BotInstance.user_id == current_user.id).all()
-    return [{"id": b.id, "symbol": b.symbol} for b in bots]
+    # Updated to include more info for the sidebar/list view
+    return [
+        {
+            "id": b.id, 
+            "symbol": b.symbol, 
+            "is_running": b.is_running,
+            "daily_pnl": b.daily_pnl
+        } for b in bots
+    ]
 
 @router.post("/settings/new")
 async def create_bot(bot_data: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -37,12 +45,11 @@ async def create_bot(bot_data: dict, db: Session = Depends(get_db), current_user
         encrypted_secret=encrypt_key(api_secret),
         is_running=False,
         daily_pnl=0.0,
+        unrealized_pnl=0.0, # Initialized
         min_trade_price=bot_data.get("min_trade_price", 0.0),
         max_trade_price=bot_data.get("max_trade_price", 999999.0),
         max_daily_loss=bot_data.get("max_daily_loss", 50.0),
-        # --- NEW: TRADE AMOUNT ---
         trade_amount_usd=bot_data.get("trade_amount_usd", 15.0),
-        # ------------------------
         telegram_bot_token=bot_data.get("bot_token"),
         telegram_chat_id=bot_data.get("chat_id"),
         updated_at=None
@@ -77,8 +84,15 @@ async def get_bot_stats(bot_id: int, db: Session = Depends(get_db), current_user
         "is_running": bot.is_running,
         "in_position": bot.in_position,
         "buy_price": bot.buy_price,
+        "position_size": bot.position_size, # Added: Show how much crypto we hold
         "daily_pnl": f"${bot.daily_pnl:,.2f}",
-        "daily_pnl_value": bot.daily_pnl,
+        "daily_pnl_raw": bot.daily_pnl,
+        
+        # --- NEW: Real-time PnL for Dashboard ---
+        "unrealized_pnl": bot.unrealized_pnl, 
+        "unrealized_pnl_str": f"${bot.unrealized_pnl:+.2f}",
+        # ----------------------------------------
+        
         "current_price": price,
         "rsi_value": rsi,
         "last_ema_200": ema200,
@@ -91,9 +105,7 @@ async def get_bot_stats(bot_id: int, db: Session = Depends(get_db), current_user
         "min_trade_price": bot.min_trade_price,
         "max_trade_price": bot.max_trade_price,
         "max_daily_loss": bot.max_daily_loss,
-        # --- NEW: TRADE AMOUNT ---
         "trade_amount_usd": bot.trade_amount_usd,
-        # ------------------------
         "take_profit": bot.take_profit or 1.05,
         "stop_loss": bot.stop_loss or 0.98,
         
@@ -119,7 +131,7 @@ async def update_safety_thresholds(
     if not bot:
         raise HTTPException(status_code=404, detail="Bot not found")
     
-    # Update Safety Thresholds
+    # Update Fields
     if "min_trade_price" in settings_data:
         bot.min_trade_price = float(settings_data["min_trade_price"])
     
@@ -129,13 +141,18 @@ async def update_safety_thresholds(
     if "max_daily_loss" in settings_data:
         bot.max_daily_loss = float(settings_data["max_daily_loss"])
 
-    # --- NEW: UPDATE TRADE AMOUNT ---
     if "trade_amount_usd" in settings_data:
         val = float(settings_data["trade_amount_usd"])
+        # Safety: Kraken/Exchanges usually have a $5 minimum trade
         if val < 5.0:
             raise HTTPException(status_code=400, detail="Trade amount must be at least $5.00")
         bot.trade_amount_usd = val
-    # --------------------------------
+
+    if "take_profit" in settings_data:
+        bot.take_profit = float(settings_data["take_profit"])
+
+    if "stop_loss" in settings_data:
+        bot.stop_loss = float(settings_data["stop_loss"])
 
     # Update Telegram Credentials
     if "bot_token" in settings_data:
@@ -151,12 +168,25 @@ async def update_safety_thresholds(
         db.refresh(bot)
         return {
             "status": "success",
-            "message": "Safety, Trade Amount, and Telegram settings synchronized",
+            "message": "Settings updated and synchronized",
             "bot_id": bot.id
         }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to persist settings: {str(e)}")
+
+@router.post("/{bot_id}/toggle")
+async def toggle_bot(bot_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    bot = db.query(BotInstance).filter(BotInstance.id == bot_id, BotInstance.user_id == current_user.id).first()
+    if not bot: raise HTTPException(status_code=404, detail="Bot not found")
+    
+    # Add subscription check back if needed
+    bot.is_running = not bot.is_running
+    if bot.is_running:
+        bot.updated_at = None
+    
+    db.commit()
+    return {"is_running": bot.is_running}
 
 @router.post("/{bot_id}/toggle")
 async def toggle_bot(bot_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

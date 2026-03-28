@@ -23,10 +23,15 @@ class StrategyManager:
     def send_telegram_msg(self, message):
         token = self.bot.telegram_bot_token
         chat_id = self.bot.telegram_chat_id
-        if not token or not chat_id or str(token).strip() == "": return
+        if not token or not chat_id or str(token).strip() == "": 
+            return
 
         url = f"https://api.telegram.org/bot{token.strip()}/sendMessage"
-        payload = {"chat_id": chat_id.strip(), "text": message, "parse_mode": "HTML"}
+        payload = {
+            "chat_id": chat_id.strip(), 
+            "text": message, 
+            "parse_mode": "HTML"
+        }
         try:
             requests.post(url, json=payload, timeout=5)
         except Exception as e:
@@ -36,17 +41,21 @@ class StrategyManager:
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         full_log = f"--- {timestamp} ---\n{error_msg}\n{traceback.format_exc()}\n\n"
         try:
-            with open(ERROR_LOG, "a") as f: f.write(full_log)
-        except: pass
+            with open(ERROR_LOG, "a") as f: 
+                f.write(full_log)
+        except: 
+            pass
         self.send_telegram_msg(f"⚠️ <b>BOT ERROR ({self.bot.symbol}):</b>\n<code>{error_msg}</code>")
 
-    # --- NEW: FUNDING CHECK ---
+    # --- FUNDING CHECK ---
     def check_available_funds(self, requested_usd):
         """Checks if Kraken has enough USD/USDT to cover the requested trade amount."""
         try:
             balance = self.exchange.fetch_balance()
-            # Kraken uses 'ZUSD' or 'USD' depending on the API version/account
-            available = balance['free'].get('USD', balance['free'].get('ZUSD', balance['free'].get('USDT', 0)))
+            # Kraken uses 'ZUSD', 'USD', or 'USDT'
+            available = balance['free'].get('USD', 
+                        balance['free'].get('ZUSD', 
+                        balance['free'].get('USDT', 0)))
             return available >= requested_usd, float(available)
         except Exception as e:
             print(f"Balance Check Failed: {e}")
@@ -64,12 +73,13 @@ class StrategyManager:
                     side=side.lower(),
                     amount=amount
                 )
-                execution_price = order.get('average') or order.get('price') or price
+                # Ensure we use the actual price filled by the exchange
+                execution_price = float(order.get('average') or order.get('price') or price)
             except Exception as e:
                 self.log_error(f"EXCHANGE REJECTED ORDER: {str(e)}")
                 return 
 
-            # 2. PERMANENT LEDGER
+            # 2. PERMANENT LEDGER (Updated for tracking USD cost basis)
             new_db_trade = Trade(
                 bot_id=self.bot.id,
                 user_id=self.bot.user_id,
@@ -77,6 +87,7 @@ class StrategyManager:
                 side=f"{side} ({action})",
                 price=execution_price,
                 amount=amount,
+                cost_basis_usd=float(execution_price * amount),
                 pnl=pnl,
                 timestamp=datetime.now(timezone.utc)
             )
@@ -87,12 +98,19 @@ class StrategyManager:
                 self.bot.in_position = True
                 self.bot.buy_price = execution_price
                 self.bot.position_size = amount
+                self.bot.unrealized_pnl = 0.0 
+                
+                usd_val = amount * execution_price
                 tg_msg = (f"🚀 <b>BUY EXECUTED: {self.bot.symbol}</b>\n"
                           f"Price: <code>${execution_price:,.2f}</code>\n"
-                          f"Amount: <code>${(amount * execution_price):,.2f}</code>")
+                          f"Value: <code>${usd_val:,.2f}</code>")
             else:
                 self.bot.in_position = False
                 self.bot.daily_pnl += pnl
+                self.bot.unrealized_pnl = 0.0
+                self.bot.position_size = 0.0
+                
+                # Fee calculation logic if owner exists
                 if pnl > 0 and self.bot.owner:
                     current_fees = self.bot.owner.unpaid_fees or 0
                     self.bot.owner.unpaid_fees = current_fees + (pnl * 0.0012)
@@ -100,7 +118,7 @@ class StrategyManager:
                 self.bot.consecutive_losses = (self.bot.consecutive_losses + 1) if pnl < 0 else 0
                 outcome = "PROFIT ✅" if pnl > 0 else "LOSS 🛑"
                 tg_msg = (f"💰 <b>SELL EXECUTED: {self.bot.symbol}</b>\n"
-                          f"PnL: <b>{pnl:+.2f}</b> ({outcome})")
+                          f"PnL: <b>${pnl:+.2f}</b> ({outcome})")
 
             self.send_telegram_msg(tg_msg)
             self.db.commit()
@@ -123,28 +141,20 @@ class StrategyManager:
             rs = gain / loss.replace(0, 1e-10)
             df['rsi'] = 100 - (100 / (1 + rs))
             
-            df['tr'] = pd.concat([df['high']-df['low'], 
-                                  abs(df['high']-df['close'].shift()), 
-                                  abs(df['low']-df['close'].shift())], axis=1).max(axis=1)
-            df['atr'] = df['tr'].rolling(14).mean()
-            
             return df.iloc[-1]
         except Exception as e:
             self.log_error(f"Market Data Fetch Failed: {e}")
             return None
 
-    # --- UPDATED: USE USER-INPUTTED AMOUNT ---
     def calculate_trade_quantity(self, price):
         """Calculates quantity based on the trade_amount_usd set by the user."""
         try:
-            # Use the new data point from the DB, default to $15 if not set
             usd_to_risk = getattr(self.bot, 'trade_amount_usd', 15.0)
-            
-            # Basic Safety: If the user entered something crazy like 0 or negative
-            if usd_to_risk <= 0: usd_to_risk = 15.0
+            if usd_to_risk <= 0: 
+                usd_to_risk = 15.0
 
             quantity = usd_to_risk / price
-            # Ensure quantity matches exchange precision (e.g. 0.0001 BTC)
+            # Ensure quantity matches exchange precision
             return float(self.exchange.amount_to_precision(self.bot.symbol, quantity))
         except Exception as e:
             print(f"Quantity Calculation Error: {e}")
@@ -166,10 +176,17 @@ class StrategyManager:
                 
             price = float(data['close'])
             
+            # --- Sync Indicators & Live Unrealized PnL ---
             self.bot.last_known_price = price
             self.bot.last_rsi = float(data['rsi'])
             self.bot.last_ema_200 = float(data['ema_200'])
             self.bot.last_ema_20 = float(data['ema_20']) 
+            
+            if self.bot.in_position and self.bot.buy_price > 0:
+                self.bot.unrealized_pnl = (price - self.bot.buy_price) * self.bot.position_size
+            else:
+                self.bot.unrealized_pnl = 0.0
+
             self.db.commit()
 
             # --- MANUAL FORCE ACTION ---
@@ -180,7 +197,8 @@ class StrategyManager:
 
                 if action_to_take == "BUY" and not self.bot.in_position:
                     size = self.calculate_trade_quantity(price)
-                    self.record_execution("MANUAL OVERRIDE", "BUY", price, size)
+                    if size > 0:
+                        self.record_execution("MANUAL OVERRIDE", "BUY", price, size)
                     return 
                 
                 elif action_to_take == "SELL" and self.bot.in_position:
@@ -195,10 +213,10 @@ class StrategyManager:
                    (self.bot.max_trade_price and price > self.bot.max_trade_price):
                     return
                 
-                if self.bot.daily_pnl <= -abs(self.bot.max_daily_loss or 100): 
+                if self.bot.daily_pnl <= -abs(self.bot.max_daily_loss or 50): 
                     return
 
-                # 2. Trend Logic
+                # 2. Entry Logic
                 trend_ok = price > data['ema_200']
                 pullback_ok = 30 < data['rsi'] < 60
                 near_ema_ok = price <= (data['ema_20'] * 1.001)
@@ -206,10 +224,12 @@ class StrategyManager:
                 if trend_ok and pullback_ok and near_ema_ok:
                     size = self.calculate_trade_quantity(price)
                     
-                    # 3. Final Funding Check before execution
-                    can_afford, bal = self.check_available_funds(getattr(self.bot, 'trade_amount_usd', 15.0))
+                    # 3. Funding Check
+                    requested_usd = getattr(self.bot, 'trade_amount_usd', 15.0)
+                    can_afford, bal = self.check_available_funds(requested_usd)
+                    
                     if not can_afford:
-                        self.send_telegram_msg(f"🚨 <b>FUNDING ALERT:</b> Tried to buy ${self.bot.trade_amount_usd} worth of {self.bot.symbol}, but only ${bal:.2f} is available.")
+                        self.send_telegram_msg(f"🚨 <b>FUNDING ALERT:</b> Tried to buy ${requested_usd} of {self.bot.symbol}, but only ${bal:.2f} available.")
                         return
 
                     if size > 0:

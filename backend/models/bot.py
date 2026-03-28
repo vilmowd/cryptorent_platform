@@ -22,7 +22,7 @@ class BotInstance(Base):
     encrypted_passphrase = Column(String(500), nullable=True) 
 
     # --- User-Defined Parameters ---
-    trade_amount_usd = Column(Float, default=100.0)
+    trade_amount_usd = Column(Float, default=15.0)  # Defaulting to your preferred $15
     rsi_low = Column(Integer, default=35)
     rsi_high = Column(Integer, default=65)
     take_profit = Column(Float, default=1.03)
@@ -41,13 +41,12 @@ class BotInstance(Base):
     is_running = Column(Boolean, default=False)
     in_position = Column(Boolean, default=False)
     buy_price = Column(Float, default=0.0)
-    position_size = Column(Float, default=0.0)
-    daily_pnl = Column(Float, default=0.0)
+    position_size = Column(Float, default=0.0) # Stores the exact crypto amount (e.g. 0.000234 BTC)
+    daily_pnl = Column(Float, default=0.0)      # Realized Profit (Closed trades)
+    unrealized_pnl = Column(Float, default=0.0) # Live Profit (Floating PnL)
     consecutive_losses = Column(Integer, default=0)
     
     # --- EMERGENCY & MANUAL OVERRIDE ---
-    # This is the missing piece that caused your error!
-    # Values: "BUY", "SELL", or None
     force_action = Column(String, nullable=True) 
 
     # Standardized date string for easier daily resets
@@ -66,5 +65,3 @@ class BotInstance(Base):
     
     # --- HEARTBEAT ---
     updated_at = Column(DateTime, nullable=True)
-
-    trade_amount_usd = Column(Float, default=15.0)

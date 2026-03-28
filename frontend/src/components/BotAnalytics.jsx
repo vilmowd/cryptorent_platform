@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import './BotAnalytics.css'; 
 import StrategyInfoModal from './StrategyInfoModal';
 
-
 const BotAnalytics = ({ botId, onBack }) => {
   const [data, setData] = useState(null);
   const [trades, setTrades] = useState([]); 
@@ -14,44 +13,14 @@ const BotAnalytics = ({ botId, onBack }) => {
   // --- HEARTBEAT LOGIC ---
   const getEngineStatus = (lastUpdate) => {
     if (!lastUpdate) return { label: 'OFFLINE', color: '#94a3b8' };
-    
-    // 1. Force the string into a UTC Date object
-    // Adding 'Z' ensures the browser treats it as UTC regardless of your local settings
     const syncStr = lastUpdate.endsWith('Z') ? lastUpdate : `${lastUpdate}Z`;
     const lastSeen = new Date(syncStr).getTime();
-    
-    // 2. Get current UTC time (not local time)
     const now = new Date().getTime();
-    
-    // 3. Calculate absolute difference
     const diffSeconds = Math.abs(now - lastSeen) / 1000;
 
-    console.log("Real-time Diff (Seconds):", diffSeconds);
-
-    // 4. Be slightly more generous with the timing
-    // Since the loop is 15s and network lag exists, 60s is a safe "LIVE" window
-    if (diffSeconds < 60) {
-      return { label: 'LIVE', color: '#4ade80' };
-    } else if (diffSeconds < 180) {
-      return { label: 'DELAYED', color: '#facc15' };
-    } else {
-      return { label: 'CRASHED', color: '#f87171' };
-    }
-  };
-
-  const handleResetPnL = async (botId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/bots/${botId}/reset-pnl`, {
-        method: 'POST',
-      });
-      if (response.ok) {
-        // Refresh your data here to show the $0.00 immediately
-        fetchBotData(); 
-        alert("PnL Reset Successful! Safety gates are now open.");
-      }
-    } catch (err) {
-      console.error("Failed to reset PnL:", err);
-    }
+    if (diffSeconds < 60) return { label: 'LIVE', color: '#4ade80' };
+    if (diffSeconds < 180) return { label: 'DELAYED', color: '#facc15' };
+    return { label: 'CRASHED', color: '#f87171' };
   };
 
   const fetchData = useCallback(async () => {
@@ -90,13 +59,12 @@ const BotAnalytics = ({ botId, onBack }) => {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // --- SAFETY GATES (Prevents "Cannot read property of null" errors) ---
   if (error) return <div className="status-alert error">{error}</div>;
   if (!data) return <div className="loading-text">Accessing Secure Ledger...</div>;
 
-  // Once we are past the !data check, it is safe to calculate variables
   const status = getEngineStatus(data.last_sync || data.updated_at);
   const factors = data.decision_factors || {};
+  const isProfit = data.unrealized_pnl >= 0;
   
   return (
     <div className="analytics-container">
@@ -118,7 +86,6 @@ const BotAnalytics = ({ botId, onBack }) => {
         </div>
       </div>
 
-      {/* --- STRATEGY INFO MODAL --- */}
       <StrategyInfoModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
@@ -127,7 +94,7 @@ const BotAnalytics = ({ botId, onBack }) => {
 
       <div className="brain-grid">
         
-        {/* --- MISSION STATUS --- */}
+        {/* --- MISSION STATUS (Updated with ROI & Size) --- */}
         <div className="logic-card mission-card">
           <h3>Current Mission</h3>
           <div className="mission-content">
@@ -135,8 +102,13 @@ const BotAnalytics = ({ botId, onBack }) => {
               <div className="mission-status selling">
                 <span className="pulse red">●</span>
                 <div>
-                  <strong>DEFENDING POSITION</strong>
-                  <p>Target Exit: ${(data.buy_price * (data.take_profit || 1.05)).toLocaleString()}</p>
+                  <strong>DEFENDING POSITION ({data.position_size?.toFixed(4)})</strong>
+                  <p>Entry: ${data.buy_price?.toLocaleString()}</p>
+                  <p>Current ROI: 
+                    <span className={isProfit ? 'text-green' : 'text-red'}>
+                       {data.buy_price ? (((data.current_price - data.buy_price) / data.buy_price) * 100).toFixed(2) : 0}%
+                    </span>
+                  </p>
                 </div>
               </div>
             ) : (
@@ -144,7 +116,8 @@ const BotAnalytics = ({ botId, onBack }) => {
                 <span className="pulse green">●</span>
                 <div>
                   <strong>HUNTING ENTRY</strong>
-                  <p>Scanning for RSI Pullback & EMA Dip</p>
+                  <p>Budget: ${data.trade_amount_usd} USD</p>
+                  <p>Scanning RSI Pullback & EMA Trend</p>
                 </div>
               </div>
             )}
@@ -165,22 +138,28 @@ const BotAnalytics = ({ botId, onBack }) => {
           </div>
         </div>
 
-        {/* --- MARKET STATS CARD --- */}
+        {/* --- MARKET STATS CARD (Updated with Floating PnL) --- */}
         <div className="stats-card">
           <h3>Calculated Indicators</h3>
           <div className="stat-row">
-            <span>Current Price:</span>
-            <strong>{typeof data.current_price === 'number' ? `$${data.current_price.toLocaleString()}` : '---'}</strong>
+            <span>Price:</span>
+            <strong>${data.current_price?.toLocaleString() || '---'}</strong>
+          </div>
+          <div className="stat-row highlight-row">
+            <span>Floating PnL:</span>
+            <strong className={isProfit ? 'text-green' : 'text-red'}>
+              {data.unrealized_pnl_str || '$0.00'}
+            </strong>
+          </div>
+          <div className="stat-row">
+            <span>Daily Realized:</span>
+            <strong style={{color: data.daily_pnl_raw < 0 ? '#f87171' : '#4ade80'}}>
+              {data.daily_pnl || '$0.00'}
+            </strong>
           </div>
           <div className="stat-row">
             <span>RSI (14):</span>
             <strong style={{color: '#60a5fa'}}>{data.rsi_value ? data.rsi_value.toFixed(2) : '---'}</strong>
-          </div>
-          <div className="stat-row">
-            <span>Daily PnL:</span>
-            <strong style={{color: String(data.daily_pnl).includes('-') ? '#f87171' : '#4ade80'}}>
-              {data.daily_pnl || '$0.00'}
-            </strong>
           </div>
         </div>
 

@@ -11,14 +11,19 @@ class Trade(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     
     symbol = Column(String)     
-    side = Column(String)       
-    price = Column(Float)
-    amount = Column(Float)
-    pnl = Column(Float, default=0.0) 
+    side = Column(String)       # e.g., "BUY (STRATEGY ENTRY)" or "SELL (STOP LOSS)"
+    price = Column(Float)       # The execution price from the exchange
+    amount = Column(Float)      # The exact crypto quantity (e.g., 0.00025 BTC)
     
-    # Use timezone-aware UTC (utcnow is deprecated in newer Python/SQLAlchemy)
+    # --- NEW: Fixed Amount Tracking ---
+    # This stores the total USD value at the moment of execution (e.g., 15.0)
+    cost_basis_usd = Column(Float, default=0.0) 
+    
+    pnl = Column(Float, default=0.0) # Realized profit/loss for SELL trades
+    
+    # Use timezone-aware UTC
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     bot = relationship("BotInstance", back_populates="trades")
-    owner = relationship("User", back_populates="trades") # Added this
+    owner = relationship("User", back_populates="trades")
