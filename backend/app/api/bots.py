@@ -64,36 +64,36 @@ async def get_bot_stats(bot_id: int, db: Session = Depends(get_db), current_user
     if not bot:
         raise HTTPException(status_code=404, detail="Bot not found")
     
-    # 1. Define the logic thresholds (Synced with StrategyManager.py)
-    # We use the same numbers here that the bot uses to trade
     price = bot.last_known_price or 0
     rsi = bot.last_rsi or 0
     ema200 = bot.last_ema_200 or 0
     ema20 = bot.last_ema_20 or 0
 
-    # 2. Return the payload with ALL fields required by the new React Modal
     return {
         "id": bot.id,
         "symbol": bot.symbol,
         "is_running": bot.is_running,
-        "in_position": bot.in_position,  # Crucial for "Current Mission" card
-        "buy_price": bot.buy_price,      # Crucial for Target calculations
+        "in_position": bot.in_position,
+        "buy_price": bot.buy_price,
         "daily_pnl": f"${bot.daily_pnl:,.2f}",
-        "daily_pnl_value": bot.daily_pnl, # Numeric version for safety gate check
+        "daily_pnl_value": bot.daily_pnl,
         "current_price": price,
         "rsi_value": rsi,
-        "last_ema_200": ema200,          # Sent to UI for Modal info
-        "last_ema_20": ema20,            # Sent to UI for Modal info
+        "last_ema_200": ema200,
+        "last_ema_20": ema20,
         "last_sync": bot.updated_at.isoformat() if bot.updated_at else None,
         
-        # Settings for "Safety Gates" visibility
+        # --- ADD THESE TWO LINES BELOW ---
+        "telegram_bot_token": bot.telegram_bot_token,
+        "telegram_chat_id": bot.telegram_chat_id,
+        # ---------------------------------
+
         "min_trade_price": bot.min_trade_price,
         "max_trade_price": bot.max_trade_price,
         "max_daily_loss": bot.max_daily_loss,
-        "take_profit": bot.take_profit or 1.05, # Default to 5% if none set
-        "stop_loss": bot.stop_loss or 0.98,     # Default to 2% if none set
+        "take_profit": bot.take_profit or 1.05,
+        "stop_loss": bot.stop_loss or 0.98,
         
-        # This aligns the UI checkmarks exactly with the Python run_tick() logic
         "decision_factors": {
             "is_trend_ok": price > ema200 if price and ema200 else False,
             "is_rsi_pullback": 30 < rsi < 60 if rsi else False,
