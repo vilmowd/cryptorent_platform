@@ -20,7 +20,7 @@ const BotCard = ({ botId, onNavigate }) => {
     min_trade_price: 0,
     max_trade_price: 0,
     max_daily_loss: 0,
-    trade_amount_usd: 15 // Default fallback
+    trade_amount_usd: 15 
   });
 
   const getAuthHeaders = () => {
@@ -53,7 +53,7 @@ const BotCard = ({ botId, onNavigate }) => {
             min_trade_price: data.min_trade_price ?? 0,
             max_trade_price: data.max_trade_price ?? 0,
             max_daily_loss: data.max_daily_loss ?? 0,
-            trade_amount_usd: data.trade_amount_usd ?? 15 // Sync from DB
+            trade_amount_usd: data.trade_amount_usd ?? 15 
           });
           setTelegramData({
             bot_token: data.telegram_bot_token || '', 
@@ -101,7 +101,6 @@ const BotCard = ({ botId, onNavigate }) => {
   };
 
   const saveSettings = async () => {
-    // Basic validation before sending to API
     if (thresholds.trade_amount_usd < 5) {
       triggerToast("Amount too small! Exchange requires min $5-10.");
       return;
@@ -112,7 +111,7 @@ const BotCard = ({ botId, onNavigate }) => {
         min_trade_price: Number(thresholds.min_trade_price),
         max_trade_price: Number(thresholds.max_trade_price),
         max_daily_loss: Number(thresholds.max_daily_loss),
-        trade_amount_usd: Number(thresholds.trade_amount_usd), // Added to payload
+        trade_amount_usd: Number(thresholds.trade_amount_usd),
         bot_token: telegramData.bot_token,
         chat_id: telegramData.chat_id
       };
@@ -137,9 +136,9 @@ const BotCard = ({ botId, onNavigate }) => {
   };
 
   const toggleBot = async () => {
-    // --- NEW: EDITING MODE CHECK ---
+    // PREVENT INITIALIZATION IF EDITING
     if (isEditing) {
-      triggerToast("Please CONFIRM settings before starting engine!");
+      triggerToast("⚠️ Confirm settings before starting engine!");
       return;
     }
 
@@ -158,6 +157,43 @@ const BotCard = ({ botId, onNavigate }) => {
     }
   };
 
+  const deleteBot = async () => {
+    const isRunning = bot.is_running;
+    const confirmMsg = isRunning 
+      ? `⚠️ BOT IS LIVE! Force-stopping engine and deleting ${bot.symbol}? This cannot be undone.`
+      : `Confirm deletion of ${bot.symbol}?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      // 1. If running, send a stop signal first
+      if (isRunning) {
+        await fetch(`${API_BASE_URL}/bots/${botId}/toggle`, { 
+          method: 'POST', 
+          headers: getAuthHeaders() 
+        });
+        // Small delay to let the engine tick finish/acknowledge
+        await new Promise(r => setTimeout(r, 1000));
+      }
+
+      // 2. Execute final deletion
+      const res = await fetch(`${API_BASE_URL}/bots/${botId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+
+      if (res.ok) {
+        triggerToast("Engine Terminated & Bot Purged");
+        onNavigate('dashboard'); 
+      } else {
+        const errorData = await res.json();
+        triggerToast(`Purge Failed: ${errorData.detail}`);
+      }
+    } catch (error) {
+      triggerToast("Critical Error during Force-Stop");
+    }
+  };
+
   if (loading) return <div className="bot-card loading">INITIALIZING...</div>;
 
   return (
@@ -170,6 +206,9 @@ const BotCard = ({ botId, onNavigate }) => {
           <span className="text-[9px] text-slate-500 font-mono">B-ID: {bot.id.toString().padStart(4, '0')}</span>
         </div>
         <div className="flex flex-col items-end">
+          {!bot.is_running && (
+            <button className="delete-trash-btn" onClick={deleteBot} title="Delete Bot">🗑️</button>
+          )}
           <span className={`status-badge ${bot.is_running ? (isStalled ? 'active stalled' : 'active') : 'stopped'}`}>
             {isStalled ? 'STALLED' : (bot.is_running ? 'LIVE' : 'STOPPED')}
           </span>
@@ -187,7 +226,7 @@ const BotCard = ({ botId, onNavigate }) => {
         <div className="safety-grid">
           <div className="safety-header">
             <span className="label text-[10px] uppercase font-bold tracking-widest text-slate-400">Safety Parameters</span>
-            <button className="edit-btn" onClick={() => isEditing ? saveSettings() : setIsEditing(true)}>
+            <button className={`edit-btn ${isEditing ? 'confirm-mode' : ''}`} onClick={() => isEditing ? saveSettings() : setIsEditing(true)}>
               {isEditing ? 'CONFIRM' : 'EDIT'}
             </button>
           </div>
@@ -207,7 +246,6 @@ const BotCard = ({ botId, onNavigate }) => {
                 onChange={(e) => setThresholds({...thresholds, max_daily_loss: e.target.value})} 
               />
             </div>
-            {/* NEW TRADE AMOUNT INPUT */}
             <div className="input-group">
               <label>Trade Size ($)</label>
               <input type="number" disabled={!isEditing} 
@@ -260,8 +298,7 @@ const BotCard = ({ botId, onNavigate }) => {
       <div className="card-actions">
         <button 
           onClick={toggleBot} 
-          className={`power-button ${bot.is_running ? 'stop' : 'start'} ${isEditing ? 'disabled-opacity' : ''}`}
-          title={isEditing ? "Confirm settings first" : ""}
+          className={`power-button ${bot.is_running ? 'stop' : 'start'} ${isEditing ? 'disabled-ui' : ''}`}
         >
           {bot.is_running ? 'SHUTDOWN ENGINE' : 'INITIALIZE ENGINE'}
         </button>
