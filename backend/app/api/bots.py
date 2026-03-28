@@ -9,17 +9,15 @@ from api.auth import get_current_user
 from datetime import datetime, timezone
 import ccxt
 
-router = APIRouter(prefix="/bots", tags=["Bots"])
 
-# --- Helper for API Keys ---
-def encrypt_key(key: str):
-    if not key: return None
-    return f"dev_enc_{key[::-1]}" 
+# IMPORT YOUR NEW SECURITY LOGIC
+from core.security import encrypt_key, decrypt_key
+
+router = APIRouter(prefix="/bots", tags=["Bots"])
 
 @router.get("/my-bots")
 async def list_user_bots(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     bots = db.query(BotInstance).filter(BotInstance.user_id == current_user.id).all()
-    # Updated to include more info for the sidebar/list view
     return [
         {
             "id": b.id, 
@@ -28,6 +26,42 @@ async def list_user_bots(db: Session = Depends(get_db), current_user: User = Dep
             "daily_pnl": b.daily_pnl
         } for b in bots
     ]
+
+@router.post("/settings/new")
+async def create_bot(bot_data: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    api_key = bot_data.get("api_key")
+    api_secret = bot_data.get("api_secret")
+    platform = bot_data.get("platform", "kraken").lower()
+    
+    if not api_key or not api_secret:
+        raise HTTPException(status_code=400, detail="API Key and Secret are required")
+
+    # This now uses the Fernet encryption from core/security.py
+    new_bot = BotInstance(
+        user_id=current_user.id,
+        platform=platform,
+        symbol=bot_data.get("symbol", "BTC/USD"),
+        encrypted_api_key=encrypt_key(api_key),
+        encrypted_secret=encrypt_key(api_secret),
+        is_running=False,
+        daily_pnl=0.0,
+        unrealized_pnl=0.0,
+        min_trade_price=bot_data.get("min_trade_price", 0.0),
+        max_trade_price=bot_data.get("max_trade_price", 999999.0),
+        max_daily_loss=bot_data.get("max_daily_loss", 50.0),
+        trade_amount_usd=bot_data.get("trade_amount_usd", 15.0),
+        telegram_bot_token=bot_data.get("bot_token"),
+        telegram_chat_id=bot_data.get("chat_id"),
+        updated_at=None
+    )
+
+    try:
+        db.add(new_bot)
+        db.commit()
+        return {"message": "Bot initialized successfully", "bot_id": new_bot.id}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @router.post("/settings/new")
 async def create_bot(bot_data: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
