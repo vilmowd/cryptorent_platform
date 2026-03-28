@@ -7,6 +7,7 @@ from app.engine.strategy import StrategyManager
 # Global tracker for the last reset date
 last_reset_date = date.today()
 
+
 def start_engine():
     global last_reset_date
     print("🚀 BT Engine Started - Monitoring Active Bots...")
