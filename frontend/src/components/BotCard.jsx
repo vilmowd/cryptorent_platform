@@ -209,7 +209,14 @@ const BotCard = ({ botId, onNavigate, onBotDeleted, onToggleAttempt }) => {
         </div>
         <div className="flex flex-col items-end">
           {!bot.is_running && (
-            <button className="delete-trash-btn" onClick={deleteBot} title="Delete Bot">🗑️</button>
+            <button 
+              className="delete-trash-btn" 
+              onClick={deleteBot} 
+              title="Terminate and Purge Bot"
+            >
+              {/* Emoji is gone, text handled by CSS 'content' or put here */}
+              <span className="text-[10px]">🗑️</span>
+            </button>
           )}
           <span className={`status-badge ${bot.is_running ? (isStalled ? 'active stalled' : 'active') : 'stopped'}`}>
             {isStalled ? 'STALLED' : (bot.is_running ? 'LIVE' : 'STOPPED')}
