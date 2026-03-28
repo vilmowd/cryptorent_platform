@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './BotCard.css';
 
-const BotCard = ({ botId, onNavigate }) => {
+// Added onBotDeleted to props
+const BotCard = ({ botId, onNavigate, onBotDeleted, onToggleAttempt }) => {
   const [bot, setBot] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isStalled, setIsStalled] = useState(false);
@@ -23,13 +24,13 @@ const BotCard = ({ botId, onNavigate }) => {
     trade_amount_usd: 15 
   });
 
-  const getAuthHeaders = () => {
+  const getAuthHeaders = useCallback(() => {
     const token = localStorage.getItem('token');
     return {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     };
-  };
+  }, []);
 
   const triggerToast = (msg) => {
     setToastMsg(msg);
@@ -38,6 +39,7 @@ const BotCard = ({ botId, onNavigate }) => {
   };
 
   const fetchStats = useCallback(async () => {
+    if (!botId) return; // Guard for null activeBotId
     try {
       const response = await fetch(`${API_BASE_URL}/bots/${botId}/stats`, {
         method: 'GET',
@@ -76,7 +78,7 @@ const BotCard = ({ botId, onNavigate }) => {
     } catch (error) {
       console.error("Sync Error:", error);
     }
-  }, [botId, isEditing, API_BASE_URL]);
+  }, [botId, isEditing, API_BASE_URL, getAuthHeaders]);
 
   useEffect(() => {
     fetchStats();
@@ -136,18 +138,19 @@ const BotCard = ({ botId, onNavigate }) => {
   };
 
   const toggleBot = async () => {
-    // PREVENT INITIALIZATION IF EDITING
     if (isEditing) {
       triggerToast("⚠️ Confirm settings before starting engine!");
       return;
     }
+
+    // Call the dashboard-level subscription check if provided
+    if (onToggleAttempt && !onToggleAttempt()) return;
 
     try {
       const response = await fetch(`${API_BASE_URL}/bots/${botId}/toggle`, { 
         method: 'POST',
         headers: getAuthHeaders()
       });
-      if (response.status === 402) return onNavigate('/billing');
       
       const data = await response.json();
       triggerToast(data.is_running ? "Engine Initialized" : "Engine Shutdown");
@@ -157,34 +160,33 @@ const BotCard = ({ botId, onNavigate }) => {
     }
   };
 
-  const deleteBot = async () => {
+  const deleteBot = async (e) => {
+    e.stopPropagation(); // Prevent triggering the "setActiveBotId" in Dashboard
     const isRunning = bot.is_running;
     const confirmMsg = isRunning 
-      ? `⚠️ BOT IS LIVE! Force-stopping engine and deleting ${bot.symbol}? This cannot be undone.`
+      ? `⚠️ BOT IS LIVE! Force-stopping engine and deleting ${bot.symbol}?`
       : `Confirm deletion of ${bot.symbol}?`;
 
     if (!window.confirm(confirmMsg)) return;
 
     try {
-      // 1. If running, send a stop signal first
       if (isRunning) {
         await fetch(`${API_BASE_URL}/bots/${botId}/toggle`, { 
           method: 'POST', 
           headers: getAuthHeaders() 
         });
-        // Small delay to let the engine tick finish/acknowledge
         await new Promise(r => setTimeout(r, 1000));
       }
 
-      // 2. Execute final deletion
       const res = await fetch(`${API_BASE_URL}/bots/${botId}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
 
       if (res.ok) {
-        triggerToast("Engine Terminated & Bot Purged");
-        onNavigate('dashboard'); 
+        triggerToast("Bot Purged Successfully");
+        // Notify dashboard to remove the bot from the UI list
+        if (onBotDeleted) onBotDeleted(botId);
       } else {
         const errorData = await res.json();
         triggerToast(`Purge Failed: ${errorData.detail}`);
@@ -194,7 +196,7 @@ const BotCard = ({ botId, onNavigate }) => {
     }
   };
 
-  if (loading) return <div className="bot-card loading">INITIALIZING...</div>;
+  if (loading || !bot) return <div className="bot-card loading">INITIALIZING...</div>;
 
   return (
     <div className={`bot-card ${isStalled ? 'stalled-border' : ''}`}>
@@ -218,12 +220,12 @@ const BotCard = ({ botId, onNavigate }) => {
 
       <div className="stats-list">
         {bot.is_running && (
-          <button className="analytics-trigger-btn" onClick={() => onNavigate('analytics', botId)}>
+          <button className="analytics-trigger-btn" onClick={(e) => { e.stopPropagation(); onNavigate('analytics', botId); }}>
             <span className="icon">⚡</span> <span>OPEN ANALYTICS TERMINAL</span> <span className="arrow">→</span>
           </button>
         )}
 
-        <div className="safety-grid">
+        <div className="safety-grid" onClick={(e) => e.stopPropagation()}>
           <div className="safety-header">
             <span className="label text-[10px] uppercase font-bold tracking-widest text-slate-400">Safety Parameters</span>
             <button className={`edit-btn ${isEditing ? 'confirm-mode' : ''}`} onClick={() => isEditing ? saveSettings() : setIsEditing(true)}>
@@ -253,9 +255,6 @@ const BotCard = ({ botId, onNavigate }) => {
                 value={thresholds.trade_amount_usd} 
                 onChange={(e) => setThresholds({...thresholds, trade_amount_usd: e.target.value})} 
               />
-              {thresholds.trade_amount_usd < 10 && (
-                <span className="text-[7px] text-red-400 mt-1 uppercase">Below $10 Risk</span>
-              )}
             </div>
           </div>
 
@@ -274,10 +273,6 @@ const BotCard = ({ botId, onNavigate }) => {
                   value={telegramData.chat_id}
                   onChange={(e) => setTelegramData({...telegramData, chat_id: e.target.value})}
                 />
-                <button type="button" className="copy-btn" onClick={() => {
-                  navigator.clipboard.writeText(telegramData.chat_id);
-                  triggerToast("Copied!");
-                }}>📋</button>
               </div>
 
               {isEditing && (
@@ -289,13 +284,12 @@ const BotCard = ({ botId, onNavigate }) => {
                   {tgStatus.loading ? 'VERIFYING...' : (tgStatus.valid ? '✓ VALID' : 'TEST CONNECTION')}
                 </button>
               )}
-              {tgStatus.error && <p className="text-red-400 text-[9px] mt-1 text-center font-mono">✗ {tgStatus.error}</p>}
             </div>
           )}
         </div>
       </div>
 
-      <div className="card-actions">
+      <div className="card-actions" onClick={(e) => e.stopPropagation()}>
         <button 
           onClick={toggleBot} 
           className={`power-button ${bot.is_running ? 'stop' : 'start'} ${isEditing ? 'disabled-ui' : ''}`}

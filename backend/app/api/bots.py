@@ -317,6 +317,7 @@ def delete_bot(bot_id: int, db: Session = Depends(get_db), current_user = Depend
         db.flush() # Push the 'stop' to DB immediately
 
     # Final Purge
+    
     db.delete(bot)
     db.commit()
     
