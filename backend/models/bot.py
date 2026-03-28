@@ -61,6 +61,7 @@ class BotInstance(Base):
     last_ema_20 = Column(Float, default=0.0)
 
     # --- Telegram Credentials ---
+    
     telegram_bot_token = Column(String, nullable=True)
     telegram_chat_id = Column(String, nullable=True)
     
