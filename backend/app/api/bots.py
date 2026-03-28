@@ -13,7 +13,6 @@ router = APIRouter(prefix="/bots", tags=["Bots"])
 # --- Helper for API Keys ---
 def encrypt_key(key: str):
     if not key: return None
-    # Note: Consider using a real library like 'cryptography' for production!
     return f"dev_enc_{key[::-1]}" 
 
 @router.get("/my-bots")
@@ -41,9 +40,12 @@ async def create_bot(bot_data: dict, db: Session = Depends(get_db), current_user
         min_trade_price=bot_data.get("min_trade_price", 0.0),
         max_trade_price=bot_data.get("max_trade_price", 999999.0),
         max_daily_loss=bot_data.get("max_daily_loss", 50.0),
+        # --- NEW: TRADE AMOUNT ---
+        trade_amount_usd=bot_data.get("trade_amount_usd", 15.0),
+        # ------------------------
         telegram_bot_token=bot_data.get("bot_token"),
         telegram_chat_id=bot_data.get("chat_id"),
-        updated_at=None  # Explicitly start as None
+        updated_at=None
     )
 
     try:
@@ -83,14 +85,15 @@ async def get_bot_stats(bot_id: int, db: Session = Depends(get_db), current_user
         "last_ema_20": ema20,
         "last_sync": bot.updated_at.isoformat() if bot.updated_at else None,
         
-        # --- ADD THESE TWO LINES BELOW ---
         "telegram_bot_token": bot.telegram_bot_token,
         "telegram_chat_id": bot.telegram_chat_id,
-        # ---------------------------------
 
         "min_trade_price": bot.min_trade_price,
         "max_trade_price": bot.max_trade_price,
         "max_daily_loss": bot.max_daily_loss,
+        # --- NEW: TRADE AMOUNT ---
+        "trade_amount_usd": bot.trade_amount_usd,
+        # ------------------------
         "take_profit": bot.take_profit or 1.05,
         "stop_loss": bot.stop_loss or 0.98,
         
@@ -108,7 +111,6 @@ async def update_safety_thresholds(
     db: Session = Depends(get_db), 
     current_user: User = Depends(get_current_user)
 ):
-    # 1. Locate the specific bot for the current user
     bot = db.query(BotInstance).filter(
         BotInstance.id == bot_id, 
         BotInstance.user_id == current_user.id
@@ -117,9 +119,7 @@ async def update_safety_thresholds(
     if not bot:
         raise HTTPException(status_code=404, detail="Bot not found")
     
-    # 2. Update Safety Thresholds (Price Floors/Ceilings)
-    # We use .get() and check for existence to avoid overwriting with None 
-    # unless intended.
+    # Update Safety Thresholds
     if "min_trade_price" in settings_data:
         bot.min_trade_price = float(settings_data["min_trade_price"])
     
@@ -128,12 +128,18 @@ async def update_safety_thresholds(
         
     if "max_daily_loss" in settings_data:
         bot.max_daily_loss = float(settings_data["max_daily_loss"])
-    
-    # 3. Update Telegram Credentials
-    # Mapping 'bot_token' from React payload to 'telegram_bot_token' in DB
+
+    # --- NEW: UPDATE TRADE AMOUNT ---
+    if "trade_amount_usd" in settings_data:
+        val = float(settings_data["trade_amount_usd"])
+        if val < 5.0:
+            raise HTTPException(status_code=400, detail="Trade amount must be at least $5.00")
+        bot.trade_amount_usd = val
+    # --------------------------------
+
+    # Update Telegram Credentials
     if "bot_token" in settings_data:
         val = settings_data["bot_token"]
-        # If the string is empty or just spaces, store as NULL in DB
         bot.telegram_bot_token = val.strip() if (val and val.strip()) else None
 
     if "chat_id" in settings_data:
@@ -142,18 +148,15 @@ async def update_safety_thresholds(
     
     try:
         db.commit()
-        db.refresh(bot) # Refresh to get the latest state from DB
+        db.refresh(bot)
         return {
             "status": "success",
-            "message": "Safety and Telegram settings synchronized",
+            "message": "Safety, Trade Amount, and Telegram settings synchronized",
             "bot_id": bot.id
         }
     except Exception as e:
         db.rollback()
-        raise HTTPException(
-            status_code=500, 
-            detail=f"Failed to persist settings: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to persist settings: {str(e)}")
 
 @router.post("/{bot_id}/toggle")
 async def toggle_bot(bot_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -163,11 +166,8 @@ async def toggle_bot(bot_id: int, db: Session = Depends(get_db), current_user: U
     if not bot.is_running and not current_user.is_subscription_active:
         raise HTTPException(status_code=402, detail="Subscription inactive")
 
-    # Change State
     bot.is_running = not bot.is_running
     
-    # --- TRIGGER STARTUP ALERT ---
-    # When starting, we wipe updated_at so the Engine sends the Telegram alert on the first tick
     if bot.is_running:
         bot.updated_at = None
     
@@ -196,7 +196,6 @@ async def force_trade(bot_id: int, db: Session = Depends(get_db), current_user: 
     bot = db.query(BotInstance).filter(BotInstance.id == bot_id, BotInstance.user_id == current_user.id).first()
     if not bot: raise HTTPException(status_code=404, detail="Bot not found")
     
-    # We set a flag in the DB that the StrategyManager will see on the next tick
     bot.force_action = "SELL" if bot.in_position else "BUY"
     db.commit()
     
@@ -205,7 +204,6 @@ async def force_trade(bot_id: int, db: Session = Depends(get_db), current_user: 
 
 @router.post("/panic-close-all")
 async def panic_close_all(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # 1. Find all bots for this user that have an active position
     active_positions = db.query(BotInstance).filter(
         BotInstance.user_id == current_user.id,
         BotInstance.in_position == True
@@ -214,7 +212,6 @@ async def panic_close_all(db: Session = Depends(get_db), current_user: User = De
     if not active_positions:
         return {"message": "No active positions found. System is already clear."}
 
-    # 2. Mark every bot for a Force Sell
     for bot in active_positions:
         bot.force_action = "SELL"
     
@@ -230,7 +227,7 @@ async def panic_close_all(db: Session = Depends(get_db), current_user: User = De
         raise HTTPException(status_code=500, detail="Panic command failed to persist.")
     
 
-@router.post("/api/bots/{bot_id}/reset-pnl")
+@router.post("/{bot_id}/reset-pnl")
 def reset_bot_pnl(bot_id: int, db: Session = Depends(get_db)):
     bot = db.query(BotInstance).filter(BotInstance.id == bot_id).first()
     if not bot:

@@ -19,7 +19,8 @@ const BotCard = ({ botId, onNavigate }) => {
   const [thresholds, setThresholds] = useState({
     min_trade_price: 0,
     max_trade_price: 0,
-    max_daily_loss: 0
+    max_daily_loss: 0,
+    trade_amount_usd: 15 // Default fallback
   });
 
   const getAuthHeaders = () => {
@@ -51,27 +52,22 @@ const BotCard = ({ botId, onNavigate }) => {
           setThresholds({
             min_trade_price: data.min_trade_price ?? 0,
             max_trade_price: data.max_trade_price ?? 0,
-            max_daily_loss: data.max_daily_loss ?? 0
+            max_daily_loss: data.max_daily_loss ?? 0,
+            trade_amount_usd: data.trade_amount_usd ?? 15 // Sync from DB
           });
           setTelegramData({
-            // Make sure these keys match the keys in the Python return statement above!
             bot_token: data.telegram_bot_token || '', 
             chat_id: data.telegram_chat_id || ''
           });
         }
         
-        // --- STALL LOGIC FIX ---
         if (data.is_running && data.last_sync) {
-          // Ensure the date is treated as UTC (FastAPI usually sends ISO without the Z)
           const syncStr = data.last_sync.endsWith('Z') ? data.last_sync : `${data.last_sync}Z`;
           const lastUpdate = new Date(syncStr);
           const now = new Date();
           const secondsAgo = (now.getTime() - lastUpdate.getTime()) / 1000;
-          
-          // If the bot is running, check if it has checked in within 130 seconds
           setIsStalled(secondsAgo > 130); 
         } else {
-          // If the bot is NOT running, it CANNOT be stalled.
           setIsStalled(false);
         }
         
@@ -105,12 +101,18 @@ const BotCard = ({ botId, onNavigate }) => {
   };
 
   const saveSettings = async () => {
+    // Basic validation before sending to API
+    if (thresholds.trade_amount_usd < 5) {
+      triggerToast("Amount too small! Exchange requires min $5-10.");
+      return;
+    }
+
     try {
       const payload = {
         min_trade_price: Number(thresholds.min_trade_price),
         max_trade_price: Number(thresholds.max_trade_price),
         max_daily_loss: Number(thresholds.max_daily_loss),
-        // Send these explicitly so the Backend can map them
+        trade_amount_usd: Number(thresholds.trade_amount_usd), // Added to payload
         bot_token: telegramData.bot_token,
         chat_id: telegramData.chat_id
       };
@@ -198,6 +200,18 @@ const BotCard = ({ botId, onNavigate }) => {
                 value={thresholds.max_daily_loss} 
                 onChange={(e) => setThresholds({...thresholds, max_daily_loss: e.target.value})} 
               />
+            </div>
+            {/* NEW TRADE AMOUNT INPUT */}
+            <div className="input-group">
+              <label>Trade Size ($)</label>
+              <input type="number" disabled={!isEditing} 
+                className={`tg-input ${thresholds.trade_amount_usd < 10 ? 'border-red-500' : ''}`}
+                value={thresholds.trade_amount_usd} 
+                onChange={(e) => setThresholds({...thresholds, trade_amount_usd: e.target.value})} 
+              />
+              {thresholds.trade_amount_usd < 10 && (
+                <span className="text-[7px] text-red-400 mt-1 uppercase">Below $10 Risk</span>
+              )}
             </div>
           </div>
 

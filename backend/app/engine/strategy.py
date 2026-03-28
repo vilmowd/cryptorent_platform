@@ -15,7 +15,6 @@ class StrategyManager:
     def __init__(self, bot_model, db_session):
         self.db = db_session
         self.bot = bot_model
-        # initialize_exchange should return a ccxt exchange instance
         from app.utils.exchange_factory import initialize_exchange 
         self.exchange = initialize_exchange(self.bot)
         self.history_file = f"trades_bot_{self.bot.id}.json"
@@ -41,9 +40,20 @@ class StrategyManager:
         except: pass
         self.send_telegram_msg(f"⚠️ <b>BOT ERROR ({self.bot.symbol}):</b>\n<code>{error_msg}</code>")
 
+    # --- NEW: FUNDING CHECK ---
+    def check_available_funds(self, requested_usd):
+        """Checks if Kraken has enough USD/USDT to cover the requested trade amount."""
+        try:
+            balance = self.exchange.fetch_balance()
+            # Kraken uses 'ZUSD' or 'USD' depending on the API version/account
+            available = balance['free'].get('USD', balance['free'].get('ZUSD', balance['free'].get('USDT', 0)))
+            return available >= requested_usd, float(available)
+        except Exception as e:
+            print(f"Balance Check Failed: {e}")
+            return False, 0.0
+
     # --- EXECUTION ENGINE ---
     def record_execution(self, action, side, price, amount, pnl=0.0):
-        """Executes trade on exchange and updates DB state."""
         try:
             # 1. LIVE ORDER EXECUTION
             try:
@@ -59,7 +69,7 @@ class StrategyManager:
                 self.log_error(f"EXCHANGE REJECTED ORDER: {str(e)}")
                 return 
 
-            # 2. PERMANENT LEDGER (Database)
+            # 2. PERMANENT LEDGER
             new_db_trade = Trade(
                 bot_id=self.bot.id,
                 user_id=self.bot.user_id,
@@ -78,11 +88,11 @@ class StrategyManager:
                 self.bot.buy_price = execution_price
                 self.bot.position_size = amount
                 tg_msg = (f"🚀 <b>BUY EXECUTED: {self.bot.symbol}</b>\n"
-                          f"Price: <code>${execution_price:,.2f}</code>")
+                          f"Price: <code>${execution_price:,.2f}</code>\n"
+                          f"Amount: <code>${(amount * execution_price):,.2f}</code>")
             else:
                 self.bot.in_position = False
                 self.bot.daily_pnl += pnl
-                # Handle Profit Share / Fees
                 if pnl > 0 and self.bot.owner:
                     current_fees = self.bot.owner.unpaid_fees or 0
                     self.bot.owner.unpaid_fees = current_fees + (pnl * 0.0012)
@@ -92,8 +102,6 @@ class StrategyManager:
                 tg_msg = (f"💰 <b>SELL EXECUTED: {self.bot.symbol}</b>\n"
                           f"PnL: <b>{pnl:+.2f}</b> ({outcome})")
 
-            # 4. SYNC
-            self.record_trade_to_file(action, execution_price, pnl=pnl, type=side)
             self.send_telegram_msg(tg_msg)
             self.db.commit()
 
@@ -106,7 +114,6 @@ class StrategyManager:
             bars = self.exchange.fetch_ohlcv(self.bot.symbol, timeframe='5m', limit=100)
             df = pd.DataFrame(bars, columns=['time','open','high','low','close','vol'])
             
-            # Indicators
             df['ema_200'] = df['close'].ewm(span=200).mean()
             df['ema_20'] = df['close'].ewm(span=20).mean()
             
@@ -126,28 +133,32 @@ class StrategyManager:
             self.log_error(f"Market Data Fetch Failed: {e}")
             return None
 
-    def calculate_dynamic_size(self, price, atr):
+    # --- UPDATED: USE USER-INPUTTED AMOUNT ---
+    def calculate_trade_quantity(self, price):
+        """Calculates quantity based on the trade_amount_usd set by the user."""
         try:
-            balance = self.exchange.fetch_balance()
-            usd = balance['total'].get('USDT', balance['total'].get('USD', 0))
-            risk_usd = usd * 0.01 
-            size = risk_usd / atr if (atr and atr > 0) else (usd * 0.1) / price
-            return float(self.exchange.amount_to_precision(self.bot.symbol, size))
-        except:
+            # Use the new data point from the DB, default to $15 if not set
+            usd_to_risk = getattr(self.bot, 'trade_amount_usd', 15.0)
+            
+            # Basic Safety: If the user entered something crazy like 0 or negative
+            if usd_to_risk <= 0: usd_to_risk = 15.0
+
+            quantity = usd_to_risk / price
+            # Ensure quantity matches exchange precision (e.g. 0.0001 BTC)
+            return float(self.exchange.amount_to_precision(self.bot.symbol, quantity))
+        except Exception as e:
+            print(f"Quantity Calculation Error: {e}")
             return 0.0
 
     def run_tick(self):
         try:
-            # 1. HOT RELOAD & DB REFRESH
             self.db.expire(self.bot)
             self.db.refresh(self.bot)
 
-            # 2. HEARTBEAT & STARTUP ALERT
             if self.bot.updated_at is None:
                 self.send_telegram_msg(f"🤖 <b>{self.bot.symbol} Bot Live!</b>")
             self.bot.updated_at = datetime.now(timezone.utc)
             
-            # 3. GET MARKET DATA
             data = self.get_data()
             if data is None: 
                 self.db.commit() 
@@ -155,32 +166,31 @@ class StrategyManager:
                 
             price = float(data['close'])
             
-            # 4. UPDATE UI INDICATORS (Save these every tick for the React Modal)
             self.bot.last_known_price = price
             self.bot.last_rsi = float(data['rsi'])
             self.bot.last_ema_200 = float(data['ema_200'])
             self.bot.last_ema_20 = float(data['ema_20']) 
             self.db.commit()
 
-            # --- NEW: 5. CHECK FOR MANUAL FORCE ACTION ---
-            # This bypasses all indicator checks and safety gates
+            # --- MANUAL FORCE ACTION ---
             if hasattr(self.bot, 'force_action') and self.bot.force_action:
-                action_to_take = self.bot.force_action # "BUY" or "SELL"
-                self.bot.force_action = None # CLEAR THE FLAG IMMEDIATELY
+                action_to_take = self.bot.force_action
+                self.bot.force_action = None 
                 self.db.commit()
 
                 if action_to_take == "BUY" and not self.bot.in_position:
-                    size = self.calculate_dynamic_size(price, data['atr'])
+                    size = self.calculate_trade_quantity(price)
                     self.record_execution("MANUAL OVERRIDE", "BUY", price, size)
-                    return # Finish tick after manual execution
+                    return 
                 
                 elif action_to_take == "SELL" and self.bot.in_position:
                     pnl = (price - self.bot.buy_price) * self.bot.position_size
                     self.record_execution("MANUAL OVERRIDE", "SELL", price, self.bot.position_size, pnl=pnl)
-                    return # Finish tick after manual execution
+                    return 
 
-            # 6. AUTOMATED SAFETY CHECKS (Only blocks automated trading)
+            # --- AUTOMATED STRATEGY ---
             if not self.bot.in_position:
+                # 1. Price/Daily PnL Safety
                 if (self.bot.min_trade_price and price < self.bot.min_trade_price) or \
                    (self.bot.max_trade_price and price > self.bot.max_trade_price):
                     return
@@ -188,14 +198,20 @@ class StrategyManager:
                 if self.bot.daily_pnl <= -abs(self.bot.max_daily_loss or 100): 
                     return
 
-            # 7. AUTOMATED STRATEGY LOGIC
-            trend_ok = price > data['ema_200']
-            pullback_ok = 30 < data['rsi'] < 60
-            near_ema_ok = price <= (data['ema_20'] * 1.001)
-            
-            if not self.bot.in_position:
+                # 2. Trend Logic
+                trend_ok = price > data['ema_200']
+                pullback_ok = 30 < data['rsi'] < 60
+                near_ema_ok = price <= (data['ema_20'] * 1.001)
+                
                 if trend_ok and pullback_ok and near_ema_ok:
-                    size = self.calculate_dynamic_size(price, data['atr'])
+                    size = self.calculate_trade_quantity(price)
+                    
+                    # 3. Final Funding Check before execution
+                    can_afford, bal = self.check_available_funds(getattr(self.bot, 'trade_amount_usd', 15.0))
+                    if not can_afford:
+                        self.send_telegram_msg(f"🚨 <b>FUNDING ALERT:</b> Tried to buy ${self.bot.trade_amount_usd} worth of {self.bot.symbol}, but only ${bal:.2f} is available.")
+                        return
+
                     if size > 0:
                         self.record_execution("EMA PULLBACK", "BUY", price, size)
 

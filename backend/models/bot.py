@@ -66,3 +66,5 @@ class BotInstance(Base):
     
     # --- HEARTBEAT ---
     updated_at = Column(DateTime, nullable=True)
+
+    trade_amount_usd = Column(Float, default=15.0)
