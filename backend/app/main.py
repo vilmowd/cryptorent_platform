@@ -1,89 +1,82 @@
 import os
-import threading
-import time
-from dotenv import load_dotenv
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
+import httpx
+from fastapi import APIRouter, Request, Depends, HTTPException
+from sqlalchemy.orm import Session
+from app.database import get_db
+from models.user import User
+from app.api.auth import get_current_user
+from datetime import datetime, timedelta, timezone
+from paddle_billing import Client, Environment, Options
 
-# --- 1. ENV LOADING ---
-load_dotenv()
+# REMOVED prefix="/billing" from here to prevent doubling up
+router = APIRouter(tags=["Billing"])
 
-# --- 2. DELAYED IMPORTS ---
-# We import these here to ensure they don't trigger side effects before env is ready
-from init_db import setup_database
-from core.engine import start_engine 
-from api import auth, bots, dashboard, trades, webhooks
-from core import billing 
+PADDLE_API_KEY = os.getenv("PADDLE_API_KEY", "").strip()
+PADDLE_WEBHOOK_SECRET = os.getenv("PADDLE_WEBHOOK_SECRET", "").strip()
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # --- ON STARTUP ---
-    print("\n--- 🚀 SYSTEM BOOT SEQUENCE ---")
-    
-    # A. Initialize Database Schema
-    # This MUST happen before the engine tries to SELECT from bot_instances
-    print("🗄️ [1/3] Initializing Database...")
-    try:
-        setup_database()
-        print("✅ [2/3] Database synced successfully.")
-    except Exception as e:
-        print(f"❌ [CRITICAL] Database initialization failed: {e}")
-        # On Railway, you want the app to crash here so you can see why in the logs
-        raise e
-
-    # B. Safety Buffer
-    # Gives the DB driver a moment to stabilize before heavy threading begins
-    time.sleep(1.5)
-
-    # C. Start Trading Engine
-    print("🧵 [3/3] Starting Trading Engine thread...")
-    engine_thread = threading.Thread(target=start_engine, daemon=True)
-    engine_thread.start()
-    
-    print("🟢 [SYSTEM] API & Engine are now LIVE.\n")
-    
-    yield  # --- API IS ACTIVE HERE ---
-    
-    # --- ON SHUTDOWN ---
-    print("🛑 [SYSTEM] Shutting down API and Engine...")
-
-# --- 3. APP INITIALIZATION ---
-app = FastAPI(title="CryptoRent Bot API", lifespan=lifespan)
-
-# --- 4. CORS CONFIGURATION ---
-# Dynamically pull frontend URL from environment
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",
-    FRONTEND_URL,
-    "https://cryptocommandcenter.net",
-    "https://www.cryptocommandcenter.net"
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins, # Using your secure list instead of "*"
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+paddle_client = Client(
+    PADDLE_API_KEY, 
+    options=Options(Environment.PRODUCTION) 
 )
 
-# --- 5. ROUTER REGISTRATION ---
-app.include_router(auth.router, prefix="/auth")
-app.include_router(bots.router)
-app.include_router(dashboard.router)
-app.include_router(trades.router)
-app.include_router(billing.router)
-app.include_router(webhooks.router)
+async def send_telegram_alert(message: str):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    async with httpx.AsyncClient() as client:
+        try:
+            await client.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"})
+        except Exception as e:
+            print(f"❌ Telegram Error: {e}")
 
-@app.get("/")
-async def root():
+@router.get("/config")
+async def get_paddle_config(current_user: User = Depends(get_current_user)):
     return {
-        "message": "CryptoRent API is Online", 
-        "status": "Operational",
-        "environment": "Production" if os.getenv("RAILWAY_ENVIRONMENT") else "Local",
-        "timestamp": time.time()
+        "clientToken": os.getenv("PADDLE_CLIENT_TOKEN", "").strip(),
+        "priceId": os.getenv("PADDLE_PRICE_ID", "").strip(),
+        "userId": str(current_user.id),
+        "userEmail": current_user.email
     }
+
+@router.post("/create-portal")
+async def create_paddle_portal(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    current_user = db.merge(current_user)
+    customer_id = current_user.stripe_customer_id
+    if not customer_id:
+        raise HTTPException(status_code=400, detail="No active subscription found.")
+    portal_url = f"https://buy.paddle.com/customer-receipt/portal-link/{customer_id}"
+    return {"url": portal_url}
+
+@router.post("/paddle-webhook")
+async def paddle_webhook_receiver(request: Request, db: Session = Depends(get_db)):
+    payload = await request.body()
+    signature = request.headers.get("paddle-signature")
+    if not signature:
+        raise HTTPException(status_code=400, detail="Missing signature")
+    try:
+        event = paddle_client.webhooks.unmarshal(payload.decode('utf-8'), PADDLE_WEBHOOK_SECRET, signature)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    event_type = event.event_type
+    data = event.data
+
+    if event_type == "transaction.completed":
+        custom_data = getattr(data, 'custom_data', {})
+        user_id = custom_data.get("user_id") if custom_data else None
+        if user_id:
+            user = db.query(User).filter(User.id == int(user_id)).first()
+            if user:
+                user.is_subscription_active = True
+                user.stripe_customer_id = data.customer_id 
+                user.subscription_expires_at = datetime.now(timezone.utc) + timedelta(days=31)
+                user.unpaid_fees = 0.0 
+                db.commit()
+                await send_telegram_alert(f"💰 *New Subscription*: `{user.email}` is now LIVE.")
+    
+    return {"status": "success"}
