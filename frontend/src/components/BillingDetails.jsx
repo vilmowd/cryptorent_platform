@@ -33,7 +33,6 @@ const BillingDetails = ({ user }) => {
       }
 
       // CASE 2: USER IS INACTIVE -> Open Paddle Checkout
-      // Retrieve price info and user IDs from your FastAPI backend
       const configRes = await fetch(`${API_BASE_URL}/billing/config`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -43,7 +42,7 @@ const BillingDetails = ({ user }) => {
       const config = await configRes.json();
 
       // Launch Paddle Overlay
-      // Note: We use String().trim() to prevent any malformed ID errors
+      // We use config.clientToken and config.priceId as returned by your FastAPI backend
       window.Paddle.Checkout.open({
         settings: {
           displayMode: 'overlay',
@@ -52,6 +51,7 @@ const BillingDetails = ({ user }) => {
         },
         items: [
           { 
+            // Ensures the priceId is a clean string to avoid validation errors
             priceId: String(config.priceId).trim(), 
             quantity: 1 
           }
