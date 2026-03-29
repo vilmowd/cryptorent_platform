@@ -34,7 +34,7 @@ const SiteInfo = ({ onNavigate }) => {
       borderTop: '1px solid #1e293b', background: '#020617', color: '#64748b', fontSize: '0.75rem' 
     }}>
       
-      {/* INTERNAL SYSTEM MODALS (Operations & Risk Only) */}
+      {/* INTERNAL SYSTEM MODALS */}
       {activeModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
@@ -46,35 +46,49 @@ const SiteInfo = ({ onNavigate }) => {
             borderRadius: '20px', maxWidth: '650px', width: '90%', position: 'relative'
           }} onClick={e => e.stopPropagation()}>
             <h2 style={{ color: 'white', marginTop: 0, fontSize: isMobile ? '1.2rem' : '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
-              {activeModal.replace('_', ' ').toUpperCase()}
+              {activeModal === 'risk' ? 'RISK DISCLOSURE' : 'OPERATIONS MANUAL'}
             </h2>
-            <div style={{ color: '#94a3b8', lineHeight: '1.6', maxHeight: '65vh', overflowY: 'auto', fontSize: '0.75rem', paddingRight: '10px' }}>
+            <div style={{ color: '#94a3b8', lineHeight: '1.6', maxHeight: '65vh', overflowY: 'auto', fontSize: '0.75rem', paddingRight: '10px', marginTop: '15px' }}>
               
               {activeModal === 'risk' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                   <p style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '0.9rem' }}>⚠️ HIGH-RISK INVESTMENT WARNING</p>
-                  <p><strong>1. MARKET VOLATILITY:</strong> Cryptocurrency markets are subject to extreme price fluctuations. You may lose your entire principal investment.</p>
-                  <p><strong>2. EXECUTION & SLIPPAGE:</strong> Network latency may cause trades to execute at a different price than targeted.</p>
+                  <p><strong>1. MARKET VOLATILITY:</strong> Cryptocurrency markets are subject to extreme price fluctuations. You may lose your entire principal investment in a matter of seconds.</p>
+                  <p><strong>2. EXECUTION & SLIPPAGE:</strong> Network latency or lack of liquidity may cause trades to execute at a significantly worse price than targeted by the algorithm.</p>
+                  <p><strong>3. API & CONNECTIVITY:</strong> The platform relies on your exchange connectivity. We are not responsible for exchange-side downtime, API rate-limiting, or unauthorized account access resulting from insecure key management.</p>
+                  <p><strong>4. NO GUARANTEES:</strong> Past performance of technical indicators (RSI, EMA) does not guarantee future profit.</p>
                 </div>
               )}
 
               {activeModal === 'info' && (
-                <>
-                  <p style={{ fontWeight: 'bold', color: 'white', fontSize: '1rem' }}>SYSTEM OPERATION MANUAL</p>
-                  <p>Ensure API keys are set to "Spot Trading" only. Never share your primary access credentials.</p>
-                </>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  <p style={{ fontWeight: 'bold', color: 'white', fontSize: '1rem' }}>SYSTEM OPERATION PROTOCOL</p>
+                  
+                  <div style={{ padding: '12px', border: '1px solid #3b82f6', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.05)' }}>
+                    <p style={{ color: '#3b82f6', fontWeight: 'bold', fontSize: '0.8rem', margin: '0 0 5px 0' }}>🔌 API CONFIGURATION</p>
+                    <p style={{ fontSize: '0.7rem', margin: 0 }}>Enable "Spot Trading" and "Reading" permissions ONLY. <strong>Strictly disable "Withdrawals"</strong> for all API keys linked to this dashboard.</p>
+                  </div>
+
+                  <div style={{ padding: '12px', border: '1px solid #1e293b', borderRadius: '8px' }}>
+                    <p style={{ color: '#e2e8f0', fontWeight: 'bold', fontSize: '0.8rem', margin: '0 0 5px 0' }}>🤖 BOT DEPLOYMENT</p>
+                    <p style={{ fontSize: '0.7rem', margin: 0 }}>Ensure your exchange account has sufficient USDT/Base currency before activating a bot instance. Bots will automatically pause if balance is insufficient for the minimum trade size.</p>
+                  </div>
+
+                  <p style={{ fontSize: '0.7rem', fontStyle: 'italic' }}>For technical support, contact the system operator via the authorized Telegram channel.</p>
+                </div>
               )}
             </div>
             <button 
               onClick={() => setActiveModal(null)}
               style={{ marginTop: '20px', width: '100%', padding: '12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
             >
-              ACKNOWLEDGE
+              ACKNOWLEDGE & CLOSE
             </button>
           </div>
         </div>
       )}
 
+      {/* FOOTER CONTENT */}
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '20px' : '0' }}>
         <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '10px' : '20px', alignItems: isMobile ? 'flex-start' : 'center' }}>
           <div>
@@ -83,13 +97,11 @@ const SiteInfo = ({ onNavigate }) => {
           </div>
           
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', borderLeft: isMobile ? 'none' : '1px solid #1e293b', paddingLeft: isMobile ? '0' : '20px' }}>
-            {/* STATIC PAGE NAVIGATIONS (Required for Paddle) */}
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onNavigate('/terms')}>Terms</span>
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onNavigate('/policy')}>Privacy</span>
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onNavigate('/refund')}>Refunds</span>
             
-            {/* INTERNAL SYSTEM MODALS */}
-            <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setActiveModal('risk')}>Risk</span>
+            <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setActiveModal('risk')}>Risk Disclosure</span>
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setActiveModal('info')}>Operations</span>
           </div>
         </div>
@@ -107,6 +119,7 @@ const SiteInfo = ({ onNavigate }) => {
           </div>
         </div>
       </div>
+      
       <div style={{ marginTop: '15px', fontSize: '0.6rem', color: '#475569', textAlign: 'center' }}>
         © 2026 CryptoCommandCenter.net | Managed via Paddle Secure Infrastructure
       </div>
@@ -115,8 +128,24 @@ const SiteInfo = ({ onNavigate }) => {
 };
 
 const RoundBtn = ({ active, onClick, onHover }) => (
-  <button className={`round-btn ${active ? 'active' : ''}`} onClick={onClick} onMouseEnter={onHover} onMouseLeave={(e) => e.currentTarget.blur()}
-    style={{ width: '14px', height: '14px', minWidth: '14px', minHeight: '14px', borderRadius: '50%', border: '1px solid #334155', cursor: 'pointer', padding: 0, display: 'block', transition: 'all 0.2s ease' }}
+  <button 
+    className={`round-btn ${active ? 'active' : ''}`} 
+    onClick={onClick} 
+    onMouseEnter={onHover} 
+    onMouseLeave={(e) => e.currentTarget.blur()}
+    style={{ 
+      width: '14px', 
+      height: '14px', 
+      minWidth: '14px', 
+      minHeight: '14px', 
+      borderRadius: '50%', 
+      border: '1px solid #334155', 
+      cursor: 'pointer', 
+      padding: 0, 
+      display: 'block', 
+      transition: 'all 0.2s ease',
+      backgroundColor: active ? '#3b82f6' : 'transparent'
+    }}
   />
 );
 
