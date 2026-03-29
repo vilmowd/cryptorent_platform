@@ -12,7 +12,9 @@ class StrategyManager:
         self.bot = bot_model
         from app.utils.exchange_factory import initialize_exchange 
         self.exchange = initialize_exchange(self.bot)
-        self.last_heartbeat = 0 # Tracks console heartbeats
+        
+        # Simple startup flag that doesn't use the database or datetime math
+        self.startup_notified = False
 
     def send_telegram_msg(self, message):
         token = self.bot.telegram_bot_token
@@ -58,7 +60,6 @@ class StrategyManager:
 
     def record_execution(self, action, side, price, amount, pnl=0.0):
         try:
-            # Limit orders to protect your margins
             self.exchange.create_order(
                 symbol=self.bot.symbol,
                 type='limit',
@@ -102,18 +103,10 @@ class StrategyManager:
         try:
             self.db.refresh(self.bot)
 
-            # --- STARTUP NOTIFICATION ---
-            # If the bot hasn't updated in over an hour, treat this as a fresh start
-            now = datetime.now(timezone.utc)
-            if self.bot.updated_at is None or (now - self.bot.updated_at).total_seconds() > 3600:
-                self.send_telegram_msg(f"🤖 <b>Bot Online: {self.bot.symbol}</b>\nStrategy: 13% Target / 3% Stop")
-            
-            self.bot.updated_at = now
-
-            # --- CONSOLE HEARTBEAT (Every 10 mins) ---
-            if time.time() - self.last_heartbeat > 600:
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] Active: Scanning {self.bot.symbol}...")
-                self.last_heartbeat = time.time()
+            # --- CLEAN STARTUP NOTIFICATION ---
+            if not self.startup_notified:
+                self.send_telegram_msg(f"🤖 <b>Bot Online: {self.bot.symbol}</b>\nTarget: 13% | Stop: 3%")
+                self.startup_notified = True
 
             data = self.get_data()
             if data is None: return
@@ -147,7 +140,10 @@ class StrategyManager:
                         qty = float(self.exchange.amount_to_precision(self.bot.symbol, requested_usd / price))
                         self.record_execution("EMA PULLBACK", "BUY", price, qty)
 
+            # Update timestamp without doing any risky math
+            self.bot.updated_at = datetime.now(timezone.utc)
             self.db.commit()
+            
         except Exception as e:
             self.db.rollback()
             self.log_error(f"Tick Crash: {str(e)}")
