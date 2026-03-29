@@ -40,7 +40,7 @@ const LegalTerms = () => {
           <li><strong>User Credentials:</strong> Your email address for account identification and communications.</li>
           <li><strong>API Credentials:</strong> Your exchange API keys and Secrets. These are encrypted at rest and used solely to execute trades on your behalf.</li>
           <li><strong>Usage Data:</strong> We collect site traffic data, IP addresses, and interaction logs to monitor system health and improve performance.</li>
-          <li><strong>Payment Data:</strong> Payment processing is handled by Stripe. We do not store your full credit card details on our local servers.</li>
+          <li><strong>Payment Data:</strong> Payment processing is handled by Paddle. We do not store your full credit card details on our local servers.</li>
         </ul>
       </div>
 
@@ -49,7 +49,7 @@ const LegalTerms = () => {
         <h3>4. SUBSCRIPTIONS & PAYMENTS</h3>
         <p>
           Access to BT OPS is provided on a subscription basis. By subscribing, you authorize 
-          recurring monthly charges via Stripe. Fees are non-refundable. We reserve the right 
+          recurring monthly charges via Paddle. Fees are non-refundable. We reserve the right 
           to suspend bot execution for accounts with unpaid balances exceeding $50.00 USD.
         </p>
       </div>
