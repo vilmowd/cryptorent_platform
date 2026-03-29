@@ -6,8 +6,10 @@ import TradeHistory from './components/TradeHistory.jsx';
 import BillingDetails from './components/BillingDetails.jsx';
 import BotAnalytics from './components/BotAnalytics.jsx'; 
 import SiteInfo from './components/SiteInfo.jsx';
+import TermsOfService from './pages/TermsOfService.jsx'; 
+import PrivacyPolicy from './pages/PrivacyPolicy.jsx';   
+import RefundPolicy from './pages/RefundPolicy.jsx';     
 import './App.css';
-import LegalTerms from './components/LegalTerms.jsx';
 
 // --- CONFIGURATION ---
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
@@ -75,7 +77,6 @@ function App() {
       if (botsRes.ok) {
         const botsData = await botsRes.json();
         setUserBots(botsData);
-        // Default to first bot if none selected
         if (botsData.length > 0 && !selectedBotId) setSelectedBotId(botsData[0].id);
       }
     } catch (err) {
@@ -85,32 +86,23 @@ function App() {
     }
   };
 
+  // Updated navigateTo to update the browser URL for Paddle compliance
   const navigateTo = (path, botId = null) => {
-    // If the path is 'analytics', we don't necessarily need a URL change if it's an overlay
-    // but for your setup, we'll treat it as a virtual path
+    window.history.pushState({}, "", path);
     setCurrentPath(path);
     if (botId) setSelectedBotId(botId);
     window.scrollTo(0, 0);
   };
 
-  // 1. HANDLES STRIPE SUCCESS REDIRECT
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    
     if (params.get('payment') === 'success') {
-      // 1. Clear the URL so the user doesn't get stuck in a loop
       window.history.replaceState({}, document.title, "/");
-
-      // 2. Trigger your existing logout logic
-      // This clears the localStorage token and flips isLoggedIn to false
       handleLogout(); 
-      
-      // 3. Optional: Alert the user why they were kicked out
       alert("Subscription Activated! Please log in again to initialize your secure session.");
     }
   }, []);
 
-  // 2. HANDLES ROUTING AND INITIAL DATA FETCH
   useEffect(() => {
     const handleLocationChange = () => setCurrentPath(window.location.pathname);
     window.addEventListener('popstate', handleLocationChange);
@@ -130,7 +122,13 @@ function App() {
     window.location.href = '/';
   };
 
-  if (!isLoggedIn) return <Login onLoginSuccess={() => setIsLoggedIn(true)} />;
+  // PUBLIC ROUTING (For Paddle verification when logged out)
+  if (!isLoggedIn) {
+    if (currentPath === '/terms') return <TermsOfService onBack={() => window.location.href = '/'} />;
+    if (currentPath === '/policy') return <PrivacyPolicy onBack={() => window.location.href = '/'} />;
+    if (currentPath === '/refund') return <RefundPolicy onBack={() => window.location.href = '/'} />;
+    return <Login onLoginSuccess={() => setIsLoggedIn(true)} />;
+  }
 
   if (loading) {
     return (
@@ -180,14 +178,12 @@ function App() {
 
       <main className="main-content">
         {/* --- VIEW ROUTER --- */}
-        {/* Check for the direct /terms path first */}
-        {window.location.pathname === '/terms' || currentPath === '/terms' ? (
-          <div className="terms-view-full" style={{ padding: '40px 20px', maxWidth: '800px', margin: '0 auto' }}>
-             <LegalTerms />
-             <button onClick={() => navigateTo('/')} className="btn-logout" style={{marginTop: '30px'}}>
-               ← Back to Command Center
-             </button>
-          </div>
+        {currentPath === '/terms' ? (
+          <TermsOfService onBack={() => navigateTo('/')} />
+        ) : currentPath === '/policy' ? (
+          <PrivacyPolicy onBack={() => navigateTo('/')} />
+        ) : currentPath === '/refund' ? (
+          <RefundPolicy onBack={() => navigateTo('/')} />
         ) : currentPath === '/billing' ? (
           <div className="billing-view-container">
             <BillingDetails user={userData} />
@@ -248,29 +244,16 @@ function App() {
         )}
       </main>
 
-      {/* Pass navigateTo so footer links work */}
       <SiteInfo onNavigate={navigateTo} />
 
-      {/* --- MOBILE BOTTOM NAVIGATION --- */}
       <footer className="mobile-tab-bar">
-        <button 
-          className={`tab-item ${currentPath === '/' ? 'active' : ''}`} 
-          onClick={() => navigateTo('/')}
-        >
-          <span className="tab-icon"></span>
+        <button className={`tab-item ${currentPath === '/' ? 'active' : ''}`} onClick={() => navigateTo('/')}>
           <span className="tab-label">Command</span>
         </button>
-        
-        <button 
-          className={`tab-item ${currentPath === '/billing' ? 'active' : ''}`} 
-          onClick={() => navigateTo('/billing')}
-        >
-          <span className="tab-icon"></span>
+        <button className={`tab-item ${currentPath === '/billing' ? 'active' : ''}`} onClick={() => navigateTo('/billing')}>
           <span className="tab-label">Billing</span>
         </button>
-        
         <button className="tab-item" onClick={handleLogout}>
-          <span className="tab-icon"></span>
           <span className="tab-label">Log Out</span>
         </button>
       </footer>

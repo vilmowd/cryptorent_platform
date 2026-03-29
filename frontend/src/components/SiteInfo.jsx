@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import LegalTerms from './LegalTerms';
 
-const SiteInfo = ({ onNavigate }) => { // 1. Accept the onNavigate prop
+const SiteInfo = ({ onNavigate }) => {
   const [settings, setSettings] = useState({ 
     highContrast: false, 
     largeText: false, 
@@ -35,6 +34,7 @@ const SiteInfo = ({ onNavigate }) => { // 1. Accept the onNavigate prop
       borderTop: '1px solid #1e293b', background: '#020617', color: '#64748b', fontSize: '0.75rem' 
     }}>
       
+      {/* INTERNAL SYSTEM MODALS (Operations & Risk Only) */}
       {activeModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
@@ -50,26 +50,18 @@ const SiteInfo = ({ onNavigate }) => { // 1. Accept the onNavigate prop
             </h2>
             <div style={{ color: '#94a3b8', lineHeight: '1.6', maxHeight: '65vh', overflowY: 'auto', fontSize: '0.75rem', paddingRight: '10px' }}>
               
-              {activeModal === 'terms' && (
-                <LegalTerms /> 
-              )}
-
               {activeModal === 'risk' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                   <p style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '0.9rem' }}>⚠️ HIGH-RISK INVESTMENT WARNING</p>
-                  <p><strong>1. MARKET VOLATILITY:</strong> Cryptocurrency markets are subject to extreme price fluctuations. You may lose your entire principal investment in a matter of seconds.</p>
-                  <p><strong>2. EXECUTION & SLIPPAGE:</strong> Network latency or lack of liquidity may cause trades to execute at a significantly worse price than targeted.</p>
-                  <p><strong>3. API RISK:</strong> The platform relies on your exchange connectivity. We are not responsible for exchange-side downtime or API failures.</p>
+                  <p><strong>1. MARKET VOLATILITY:</strong> Cryptocurrency markets are subject to extreme price fluctuations. You may lose your entire principal investment.</p>
+                  <p><strong>2. EXECUTION & SLIPPAGE:</strong> Network latency may cause trades to execute at a different price than targeted.</p>
                 </div>
               )}
 
               {activeModal === 'info' && (
                 <>
                   <p style={{ fontWeight: 'bold', color: 'white', fontSize: '1rem' }}>SYSTEM OPERATION MANUAL</p>
-                  <div style={{ margin: '15px 0', padding: '12px', border: '1px solid #3b82f6', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.05)' }}>
-                    <p style={{ color: '#3b82f6', fontWeight: 'bold', fontSize: '0.8rem', margin: '0 0 5px 0' }}>🔌 API PROTOCOL</p>
-                    <p style={{ fontSize: '0.7rem' }}>Enable "Spot Trading" and "Reading" only. Never enable "Withdrawals."</p>
-                  </div>
+                  <p>Ensure API keys are set to "Spot Trading" only. Never share your primary access credentials.</p>
                 </>
               )}
             </div>
@@ -77,7 +69,7 @@ const SiteInfo = ({ onNavigate }) => { // 1. Accept the onNavigate prop
               onClick={() => setActiveModal(null)}
               style={{ marginTop: '20px', width: '100%', padding: '12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
             >
-              ACKNOWLEDGE & CLOSE
+              ACKNOWLEDGE
             </button>
           </div>
         </div>
@@ -89,23 +81,16 @@ const SiteInfo = ({ onNavigate }) => { // 1. Accept the onNavigate prop
             <b style={{ color: '#94a3b8', display: 'block', fontSize: '0.75rem' }}>BT OPS</b>
             <span style={{ fontSize: '0.65rem' }}>v2.4.0-PRO</span>
           </div>
-          <div style={{ display: 'flex', gap: '15px', borderLeft: isMobile ? 'none' : '1px solid #1e293b', paddingLeft: isMobile ? '0' : '20px' }}>
-            {['terms', 'risk', 'info'].map(type => (
-              <span 
-                key={type} 
-                style={{ cursor: 'pointer', textDecoration: 'underline' }} 
-                onClick={() => {
-                  if (type === 'terms') {
-                    // 2. Change the URL to /terms for external site compliance
-                    onNavigate('/terms');
-                  } else {
-                    setActiveModal(type);
-                  }
-                }}
-              >
-                {type === 'risk' ? 'Risk Disclosure' : type === 'info' ? 'Operations' : 'Legal Terms'}
-              </span>
-            ))}
+          
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', borderLeft: isMobile ? 'none' : '1px solid #1e293b', paddingLeft: isMobile ? '0' : '20px' }}>
+            {/* STATIC PAGE NAVIGATIONS (Required for Paddle) */}
+            <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onNavigate('/terms')}>Terms</span>
+            <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onNavigate('/policy')}>Privacy</span>
+            <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onNavigate('/refund')}>Refunds</span>
+            
+            {/* INTERNAL SYSTEM MODALS */}
+            <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setActiveModal('risk')}>Risk</span>
+            <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setActiveModal('info')}>Operations</span>
           </div>
         </div>
 
@@ -121,6 +106,9 @@ const SiteInfo = ({ onNavigate }) => { // 1. Accept the onNavigate prop
             <RoundBtn active={settings.reducedMotion} onClick={() => toggle('reducedMotion')} onHover={() => setHoverLabel("MOTION")} />
           </div>
         </div>
+      </div>
+      <div style={{ marginTop: '15px', fontSize: '0.6rem', color: '#475569', textAlign: 'center' }}>
+        © 2026 CryptoCommandCenter.net | Managed via Paddle Secure Infrastructure
       </div>
     </footer>
   );

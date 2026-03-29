@@ -1,0 +1,117 @@
+/* --- TERMINAL LEGAL INTERFACE --- */
+
+.legal-container {
+  background-color: #020617; /* Deep midnight blue */
+  color: #94a3b8;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  min-height: 100vh;
+  padding: 40px 20px;
+  line-height: 1.6;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.legal-header {
+  border-bottom: 2px solid #1e293b;
+  padding-bottom: 20px;
+  margin-bottom: 30px;
+}
+
+.legal-header h2 {
+  color: #f8fafc;
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+}
+
+.legal-header p {
+  font-size: 0.75rem;
+  color: #475569;
+  margin-top: 5px;
+}
+
+/* --- SECTION BLOCKS --- */
+
+.legal-section {
+  background: rgba(30, 41, 59, 0.3);
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.legal-section h3 {
+  color: #3b82f6; /* Command Blue */
+  font-size: 0.9rem;
+  margin-top: 0;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.legal-section p {
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+}
+
+.legal-section ul {
+  padding-left: 20px;
+  margin-bottom: 0;
+}
+
+.legal-section li {
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+  color: #cbd5e1;
+}
+
+/* --- WARNING STYLES (For Risk/Refunds) --- */
+
+.alert-border {
+  border-left: 4px solid #ef4444 !important; /* Safety Red */
+  background: rgba(239, 68, 68, 0.05) !important;
+}
+
+.alert-border h3 {
+  color: #ef4444;
+}
+
+/* --- FOOTER & BUTTONS --- */
+
+.legal-footer {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #1e293b;
+  text-align: center;
+  font-size: 0.7rem;
+  color: #475569;
+}
+
+.btn-logout {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #64748b;
+  padding: 8px 15px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+}
+
+.btn-logout:hover {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: #3b82f6;
+}
+
+/* Scrollbar for legal text */
+.legal-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.legal-container::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 10px;
+}
