@@ -1,12 +1,24 @@
 import React from 'react';
-import './LegalPages.css';
+import './LegalPages.css'; // Using the specific legal CSS we generated
 
-const LegalTerms = () => {
+const LegalTerms = ({ onBack }) => {
+  // Fallback to home if onBack isn't passed correctly
+  const handleExit = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      window.location.href = '/';
+    }
+  };
+
   return (
     <div className="legal-container">
+      {/* ADDED: The Exit Terminal button to match your other pages */}
+      <button onClick={handleExit} className="btn-logout">← EXIT_TERMINAL</button>
+
       <div className="legal-header">
         <h2>TERMS OF SERVICE & PRIVACY POLICY</h2>
-        <p>Effective Date: March 28, 2026</p>
+        <p>Effective Date: March 29, 2026</p>
       </div>
 
       {/* --- SECTION 1: ENTITY & JURISDICTION --- */}
@@ -40,7 +52,7 @@ const LegalTerms = () => {
           <li><strong>User Credentials:</strong> Your email address for account identification and communications.</li>
           <li><strong>API Credentials:</strong> Your exchange API keys and Secrets. These are encrypted at rest and used solely to execute trades on your behalf.</li>
           <li><strong>Usage Data:</strong> We collect site traffic data, IP addresses, and interaction logs to monitor system health and improve performance.</li>
-          <li><strong>Payment Data:</strong> Payment processing is handled by Paddle. We do not store your full credit card details on our local servers.</li>
+          <li><strong>Payment Data:</strong> Payment processing is handled by <strong>Paddle</strong>. We do not store your full credit card details on our local servers.</li>
         </ul>
       </div>
 
@@ -49,8 +61,8 @@ const LegalTerms = () => {
         <h3>4. SUBSCRIPTIONS & PAYMENTS</h3>
         <p>
           Access to BT OPS is provided on a subscription basis. By subscribing, you authorize 
-          recurring monthly charges via Paddle. Fees are non-refundable. We reserve the right 
-          to suspend bot execution for accounts with unpaid balances exceeding $50.00 USD.
+          recurring monthly charges via our Merchant of Record, <strong>Paddle</strong>. Fees are generally non-refundable. We reserve the right 
+          to suspend bot execution for accounts with unpaid balances.
         </p>
       </div>
 
@@ -70,7 +82,7 @@ const LegalTerms = () => {
         <h3>6. LIMITATION OF LIABILITY</h3>
         <p>
           To the fullest extent permitted by law, BT OPS and its owner shall not be liable for 
-          indirect, incidental, or consequential damages, including loss of profits, resulting from 
+          indirect, incidental, or consequential damages resulting from 
           market volatility, software "bugs," connectivity interruptions, or exchange downtime.
         </p>
       </div>
