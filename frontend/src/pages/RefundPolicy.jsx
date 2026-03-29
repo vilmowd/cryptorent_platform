@@ -36,7 +36,7 @@ const RefundPolicy = ({ onBack }) => {
         <h3>3. HOW TO REQUEST</h3>
         <p>
           All refund requests must be sent to <strong>supportcryptocommandcenter@cgmail.com</strong> 
-          within 7 days of the disputed charge.
+           within 7 days of the disputed charge.
         </p>
       </div>
 
