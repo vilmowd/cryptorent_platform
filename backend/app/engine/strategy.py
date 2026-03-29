@@ -12,7 +12,6 @@ class StrategyManager:
         from app.utils.exchange_factory import initialize_exchange 
         self.exchange = initialize_exchange(self.bot)
 
-    # --- TELEGRAM ---
     def send_telegram_msg(self, message):
         token = self.bot.telegram_bot_token
         chat_id = self.bot.telegram_chat_id
@@ -25,15 +24,30 @@ class StrategyManager:
     def log_error(self, error_msg):
         self.send_telegram_msg(f"⚠️ <b>BOT ERROR:</b>\n<code>{error_msg}</code>")
 
+    # --- MISSING FUNCTION RESTORED ---
+    def check_available_funds(self, requested_usd):
+        """Checks if Kraken has enough USD/USDT to cover the trade."""
+        try:
+            balance = self.exchange.fetch_balance()
+            # Check for USD, ZUSD (Kraken fiat), or USDT
+            available = balance['free'].get('USD', 
+                        balance['free'].get('ZUSD', 
+                        balance['free'].get('USDT', 0)))
+            return available >= requested_usd, float(available)
+        except Exception as e:
+            print(f"Balance Check Failed: {e}")
+            return False, 0.0
+
     def get_data(self):
         try:
             bars = self.exchange.fetch_ohlcv(self.bot.symbol, timeframe='5m', limit=100)
             df = pd.DataFrame(bars, columns=['time','open','high','low','close','vol'])
             
-            # Use Exponential Moving Averages for faster reaction to price changes
+            # EMAs for trend direction
             df['ema_200'] = df['close'].ewm(span=200).mean()
             df['ema_20'] = df['close'].ewm(span=20).mean()
             
+            # RSI for momentum
             delta = df['close'].diff()
             gain = delta.where(delta > 0, 0).rolling(14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
@@ -46,7 +60,7 @@ class StrategyManager:
 
     def record_execution(self, action, side, price, amount, pnl=0.0):
         try:
-            # LIMIT orders prevent the 'Market Taker' fees and slippage that were killing your PnL
+            # LIMIT orders save you from the spread losses you saw earlier
             order = self.exchange.create_order(
                 symbol=self.bot.symbol,
                 type='limit',
@@ -72,13 +86,13 @@ class StrategyManager:
                 self.bot.in_position = True
                 self.bot.buy_price = price
                 self.bot.position_size = amount
-                tg_msg = f"🚀 <b>BUY EXECUTED: {self.bot.symbol}</b>\nPrice: <code>${price:,.2f}</code>"
+                tg_msg = f"🚀 <b>BUY: {self.bot.symbol}</b> @ ${price:,.2f}"
             else:
                 self.bot.in_position = False
                 self.bot.daily_pnl += pnl
                 self.bot.position_size = 0.0
                 outcome = "PROFIT ✅" if pnl > 0 else "LOSS 🛑"
-                tg_msg = f"💰 <b>SELL EXECUTED: {self.bot.symbol}</b>\nReason: <b>{action}</b>\nPnL: <b>${pnl:+.2f}</b> ({outcome})"
+                tg_msg = f"💰 <b>SELL: {self.bot.symbol}</b>\nReason: {action}\nPnL: ${pnl:+.2f} ({outcome})"
 
             self.send_telegram_msg(tg_msg)
             self.db.commit()
@@ -96,17 +110,15 @@ class StrategyManager:
             self.bot.last_known_price = price
             
             if self.bot.in_position:
-                # --- DYNAMIC PROFIT TARGETS ---
+                # Target at 13% to ensure a clean 10%+ net profit after fees
                 buy_price = self.bot.buy_price
-                profit_pct = (price - buy_price) / buy_price
+                target_price = buy_price * 1.13
+                stop_price = buy_price * 0.97 # 3% safety net
                 
                 sell, reason = False, ""
-                
-                # If price jumps 13%, we sell to lock in at least 11-12%
-                if profit_pct >= 0.13:
-                    sell, reason = True, "TARGET HIT (13%+)"
-                # Traditional Stop Loss at 3%
-                elif profit_pct <= -0.03:
+                if price >= target_price:
+                    sell, reason = True, "TAKE PROFIT (13%)"
+                elif price <= stop_price:
                     sell, reason = True, "STOP LOSS (3%)"
                 
                 if sell:
@@ -114,20 +126,22 @@ class StrategyManager:
                     self.record_execution(reason, "SELL", price, self.bot.position_size, pnl=pnl)
             
             else:
-                # --- STRONGER BUY SIGNAL ---
-                # Added Volume trend check: only buy if there's enough RSI momentum
+                # Strong Buy Signal (Trend + Pullback)
                 trend_ok = price > data['ema_200'] and data['ema_20'] > data['ema_200']
-                momentum_ok = 45 < data['rsi'] < 65 # Narrower window to avoid 'dead' coins
+                momentum_ok = 45 < data['rsi'] < 65 
                 
                 if trend_ok and momentum_ok:
-                    usd_to_risk = getattr(self.bot, 'trade_amount_usd', 100.0)
-                    qty = usd_to_risk / price
-                    size = float(self.exchange.amount_to_precision(self.bot.symbol, qty))
+                    requested_usd = getattr(self.bot, 'trade_amount_usd', 100.0)
                     
-                    # Ensure we have the cash on Kraken
-                    balance = self.exchange.fetch_balance()['free'].get('USD', 0)
-                    if balance >= usd_to_risk:
+                    # Call the restored check_available_funds method
+                    can_afford, bal = self.check_available_funds(requested_usd)
+                    
+                    if can_afford:
+                        qty = requested_usd / price
+                        size = float(self.exchange.amount_to_precision(self.bot.symbol, qty))
                         self.record_execution("EMA PULLBACK", "BUY", price, size)
+                    else:
+                        print(f"Not enough funds: ${bal:.2f} available for ${requested_usd} trade.")
 
             self.db.commit()
         except Exception as e:
