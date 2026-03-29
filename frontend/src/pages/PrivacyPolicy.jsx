@@ -1,5 +1,5 @@
 import React from 'react';
-import './LegalPagess.css';
+import './LegalPages.css';
 
 const PrivacyPolicy = ({ onBack }) => {
   return (
