@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import AndroidDownloadButton from './AndroidDownloadButton.jsx';
 import './SiteInfo.css';
-
-const API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/$/, '');
-const ANDROID_APK_URL = `${API_BASE_URL}/downloads/cryptocommandcenter.apk`;
 
 const SiteInfo = ({ onNavigate }) => {
   const [settings, setSettings] = useState({ 
@@ -93,6 +91,17 @@ const SiteInfo = ({ onNavigate }) => {
         </div>
       )}
 
+      {/* Android app — prominent CTA */}
+      <div
+        style={{
+          marginBottom: '18px',
+          display: 'flex',
+          justifyContent: isMobile ? 'stretch' : 'flex-start',
+        }}
+      >
+        <AndroidDownloadButton variant="footer" />
+      </div>
+
       {/* FOOTER CONTENT */}
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '20px' : '0' }}>
         <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '10px' : '20px', alignItems: isMobile ? 'flex-start' : 'center' }}>
@@ -105,17 +114,6 @@ const SiteInfo = ({ onNavigate }) => {
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onNavigate('/terms')}>Terms</span>
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onNavigate('/policy')}>Privacy</span>
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onNavigate('/refund')}>Refunds</span>
-
-            <a
-              href={ANDROID_APK_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              download="cryptocommandcenter.apk"
-              style={{ color: '#0f172a', textDecoration: 'underline', fontWeight: 600 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              Android app (APK)
-            </a>
             
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setActiveModal('risk')}>Risk Disclosure</span>
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setActiveModal('info')}>Operations</span>

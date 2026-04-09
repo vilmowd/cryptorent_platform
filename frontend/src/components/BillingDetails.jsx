@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import AndroidDownloadButton from './AndroidDownloadButton.jsx';
 import './BillingDetails.css';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
@@ -69,16 +70,9 @@ const BillingDetails = ({ user, onSessionExpired }) => {
             ADMIN
           </span>
         </div>
-        <p style={{ fontSize: '0.75rem', color: '#334155', marginTop: '16px', marginBottom: 0 }}>
-          <a
-            href={`${API_BASE_URL}/downloads/cryptocommandcenter.apk`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: '#059669', fontWeight: 600 }}
-          >
-            Download Android app (APK)
-          </a>
-        </p>
+        <div style={{ marginTop: '20px' }}>
+          <AndroidDownloadButton variant="card" />
+        </div>
       </div>
     );
   }
@@ -244,16 +238,9 @@ const BillingDetails = ({ user, onSessionExpired }) => {
         <p style={{ fontSize: '0.7rem', color: '#64748b', fontStyle: 'italic', lineHeight: '1.4' }}>
           Payments are processed by PayPal. We do not store your card details on our servers.
         </p>
-        <p style={{ fontSize: '0.75rem', color: '#334155', marginTop: '12px', marginBottom: 0 }}>
-          <a
-            href={`${API_BASE_URL}/downloads/cryptocommandcenter.apk`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: '#059669', fontWeight: 600 }}
-          >
-            Download Android app (APK)
-          </a>
-        </p>
+        <div style={{ marginTop: '18px' }}>
+          <AndroidDownloadButton variant="card" />
+        </div>
       </div>
 
       <button
