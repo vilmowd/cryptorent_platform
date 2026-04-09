@@ -25,7 +25,8 @@ def _migrate_user_billing_columns():
                 )
             )
         if "is_admin" not in cols:
-            conn.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0"))
+            # PostgreSQL requires a boolean default (FALSE), not integer 0.
+            conn.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE"))
 
 
 def ensure_admin_user():
