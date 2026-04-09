@@ -23,9 +23,8 @@ const PrivacyPolicy = ({ onBack }) => {
       <div className="legal-section">
         <h3>2. PAYMENT PROCESSING</h3>
         <p>
-          Payment processing is handled by <strong>Paddle</strong>. BT OPS does not store 
-          your full credit card details on our local servers. Paddle acts as the Merchant of Record 
-          for all transactions.
+          Payment processing is handled by <strong>PayPal</strong>. BT OPS does not store 
+          your full card or bank details on our servers. PayPal processes payments according to its own terms and privacy policy.
         </p>
       </div>
 

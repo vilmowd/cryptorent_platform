@@ -13,9 +13,8 @@ const RefundPolicy = ({ onBack }) => {
       <div className="legal-section">
         <h3>1. SUBSCRIPTION CANCELLATION</h3>
         <p>
-          You may cancel your BT OPS subscription at any time through the Billing Portal. 
-          Upon cancellation, you will continue to have access to the Command Center until 
-          the end of your current billing cycle.
+          You may cancel your BT OPS subscription at any time from your PayPal account (preapproved payments / subscriptions)
+          or using the Manage link from this app&apos;s Billing page. Upon cancellation, you typically retain access until the end of the current billing period as described in PayPal&apos;s subscription terms.
         </p>
       </div>
 
@@ -41,7 +40,7 @@ const RefundPolicy = ({ onBack }) => {
       </div>
 
       <div className="legal-footer">
-        <p>Merchant of Record: Paddle.com</p>
+        <p>Payments are processed by PayPal, Inc. (or its affiliates) subject to PayPal user agreements.</p>
       </div>
     </div>
   );

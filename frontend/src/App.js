@@ -31,8 +31,8 @@ const SuccessOverlay = ({ onClose }) => (
 const FeatureLock = ({ onNavigate }) => (
   <div className="feature-lock-overlay">
     <div style={{ fontSize: '1.5rem', marginBottom: '10px' }}>🔒</div>
-    <h3 style={{ color: 'white', fontSize: '1rem', margin: '0 0 10px 0' }}>Access Restricted</h3>
-    <p style={{ color: '#94a3b8', fontSize: '0.8rem', textAlign: 'center', padding: '0 20px', marginBottom: '15px' }}>
+    <h3 style={{ color: '#0f172a', fontSize: '1rem', margin: '0 0 10px 0' }}>Access Restricted</h3>
+    <p style={{ color: '#64748b', fontSize: '0.8rem', textAlign: 'center', padding: '0 20px', marginBottom: '15px' }}>
       An active subscription is required to deploy new bot instances.
     </p>
     <button 
@@ -71,7 +71,7 @@ function App() {
         fetch(`${API_BASE_URL}/bots/my-bots`, { headers })
       ]);
 
-      if (userRes.status === 401) { handleLogout(); return; }
+      if (userRes.status === 401 || botsRes.status === 401) { handleLogout(); return; }
       if (userRes.ok) setUserData(await userRes.json());
       
       if (botsRes.ok) {
@@ -86,22 +86,12 @@ function App() {
     }
   };
 
-  // Updated navigateTo to update the browser URL for Paddle compliance
   const navigateTo = (path, botId = null) => {
     window.history.pushState({}, "", path);
     setCurrentPath(path);
     if (botId) setSelectedBotId(botId);
     window.scrollTo(0, 0);
   };
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('payment') === 'success') {
-      window.history.replaceState({}, document.title, "/");
-      handleLogout(); 
-      alert("Subscription Activated! Please log in again to initialize your secure session.");
-    }
-  }, []);
 
   useEffect(() => {
     const handleLocationChange = () => setCurrentPath(window.location.pathname);
@@ -122,7 +112,7 @@ function App() {
     window.location.href = '/';
   };
 
-  // PUBLIC ROUTING (For Paddle verification when logged out)
+  // PUBLIC ROUTING (legal pages when logged out)
   if (!isLoggedIn) {
     if (currentPath === '/terms') return <TermsOfService onBack={() => window.location.href = '/'} />;
     if (currentPath === '/policy') return <PrivacyPolicy onBack={() => window.location.href = '/'} />;
@@ -160,7 +150,7 @@ function App() {
                 <div className="status-indicator-container">
                   <span className={`status-dot ${userData?.is_subscription_active ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`}></span>
                   <span className={`status-value-nav ${userData?.is_subscription_active ? 'active' : 'inactive'}`}>
-                    {userData?.is_subscription_active ? 'Verified' : 'Required'}
+                    {userData?.is_admin ? 'Admin' : userData?.is_subscription_active ? 'Verified' : 'Required'}
                   </span>
                 </div>
               </div>
@@ -186,10 +176,18 @@ function App() {
           <RefundPolicy onBack={() => navigateTo('/')} />
         ) : currentPath === '/billing' ? (
           <div className="billing-view-container">
-            <BillingDetails user={userData} />
+            <BillingDetails
+              user={userData}
+              onSessionExpired={() => {
+                localStorage.removeItem('token');
+                setIsLoggedIn(false);
+                setUserData(null);
+                window.location.href = '/';
+              }}
+            />
             <button onClick={() => navigateTo('/')} className="btn-logout" style={{marginTop: '20px'}}>← Back to Command Center</button>
           </div>
-        ) : currentPath === 'analytics' ? (
+        ) : currentPath === '/analytics' ? (
           <div className="analytics-view-full">
              <BotAnalytics 
                 botId={selectedBotId} 

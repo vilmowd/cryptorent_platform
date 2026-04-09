@@ -1,26 +1,9 @@
-/* --- ROOT SCALING LOGIC --- */
-
-/* Base state */
-html {
-  --site-scale: 1;
-  /* Use a calculation that browsers can't ignore */
-  font-size: calc(16px * var(--site-scale)) !important;
-  transition: font-size 0.2s ease-out;
-}
-
-/* Active state: applied by your React useEffect */
-html.accessible-large-text {
-  --site-scale: 1.25; /* 25% Increase */
-}
-
-/* Container and Layout */
 .site-footer {
   margin-top: 30px;
-  border-top: 1px solid #1e293b;
-  background: #020617;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
   color: #64748b;
-  /* Use rem: 0.8rem will grow from 12.8px to 16px when toggled */
-  font-size: 0.8rem; 
+  font-size: 0.8rem;
   padding: 12px 20px;
 }
 
@@ -36,17 +19,16 @@ html.accessible-large-text {
   align-items: center;
 }
 
-/* Text elements inside footer should inherit the scale */
-.footer-left b, 
+.footer-left b,
 .footer-left span,
 .access-label-group p {
-  font-size: inherit; 
+  font-size: inherit;
 }
 
 .legal-links {
   display: flex;
   gap: 15px;
-  border-left: 1px solid #1e293b;
+  border-left: 1px solid #e2e8f0;
   padding-left: 20px;
 }
 
@@ -55,13 +37,13 @@ html.accessible-large-text {
   text-decoration: underline;
   transition: color 0.2s;
   font-size: 0.8rem;
+  color: #64748b;
 }
 
 .legal-link:hover {
-  color: #f8fafc;
+  color: #0f172a;
 }
 
-/* Accessibility HUD */
 .access-hud {
   display: flex;
   align-items: center;
@@ -70,42 +52,40 @@ html.accessible-large-text {
 
 .access-label-group {
   text-align: right;
-  border-right: 2px solid #1e293b;
+  border-right: 2px solid #e2e8f0;
   padding-right: 15px;
 }
 
-/* Specific small labels that shouldn't get TOO big */
 .access-label-group p:first-child {
-  font-size: 0.6rem; 
-  color: #475569;
+  font-size: 0.6rem;
+  color: #64748b;
 }
 
 .access-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
-  align-items: center; 
+  align-items: center;
 }
 
-/* The Fixed Round Buttons */
 .round-btn {
   width: 14px;
   height: 14px;
   min-width: 14px;
   min-height: 14px;
-  aspect-ratio: 1 / 1; 
+  aspect-ratio: 1 / 1;
   border-radius: 50%;
-  border: 1px solid #334155;
+  border: 1px solid #cbd5e1;
   background: transparent;
   cursor: pointer;
   padding: 0;
   transition: all 0.2s ease;
-  display: block; 
+  display: block;
 }
 
 .round-btn.active {
   background: #22c55e;
-  box-shadow: 0 0 12px rgba(34, 197, 94, 0.6);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.35);
   border-color: #4ade80;
   animation: status-pulse 2s infinite;
 }
@@ -121,26 +101,25 @@ html.accessible-large-text {
   transition: none !important;
 }
 
-/* Mobile Overrides */
 @media (max-width: 650px) {
   .footer-content {
     flex-direction: column;
     align-items: flex-start;
     gap: 25px;
   }
-  
+
   .footer-left {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-  
+
   .legal-links {
     border-left: none;
     padding-left: 0;
     gap: 20px;
   }
-  
+
   .access-hud {
     width: 100%;
     justify-content: space-between;

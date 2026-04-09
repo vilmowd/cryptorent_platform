@@ -33,3 +33,11 @@ Thumbs.db
 
 # --- Railway / Deployment ---
 .railway/
+
+# --- Android ---
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/*.iml
+android/.idea/

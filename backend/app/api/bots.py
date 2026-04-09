@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from models.bot import BotInstance
 from models.user import User
-from api.auth import get_current_user 
+from api.auth import get_current_user, has_service_access
 from datetime import datetime, timezone
 import ccxt
 
@@ -63,41 +63,6 @@ async def create_bot(bot_data: dict, db: Session = Depends(get_db), current_user
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-@router.post("/settings/new")
-async def create_bot(bot_data: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    api_key = bot_data.get("api_key")
-    api_secret = bot_data.get("api_secret")
-    platform = bot_data.get("platform", "kraken").lower()
-    
-    if not api_key or not api_secret:
-        raise HTTPException(status_code=400, detail="API Key and Secret are required")
-
-    new_bot = BotInstance(
-        user_id=current_user.id,
-        platform=platform,
-        symbol=bot_data.get("symbol", "BTC/USD"),
-        encrypted_api_key=encrypt_key(api_key),
-        encrypted_secret=encrypt_key(api_secret),
-        is_running=False,
-        daily_pnl=0.0,
-        unrealized_pnl=0.0, # Initialized
-        min_trade_price=bot_data.get("min_trade_price", 0.0),
-        max_trade_price=bot_data.get("max_trade_price", 999999.0),
-        max_daily_loss=bot_data.get("max_daily_loss", 50.0),
-        trade_amount_usd=bot_data.get("trade_amount_usd", 15.0),
-        telegram_bot_token=bot_data.get("bot_token"),
-        telegram_chat_id=bot_data.get("chat_id"),
-        updated_at=None
-    )
-
-    try:
-        db.add(new_bot)
-        db.commit()
-        return {"message": "Bot initialized successfully", "bot_id": new_bot.id}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    
 
 @router.post("/test-keys")
 async def test_keys(data: dict):
@@ -243,29 +208,17 @@ async def update_safety_thresholds(
 @router.post("/{bot_id}/toggle")
 async def toggle_bot(bot_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     bot = db.query(BotInstance).filter(BotInstance.id == bot_id, BotInstance.user_id == current_user.id).first()
-    if not bot: raise HTTPException(status_code=404, detail="Bot not found")
-    
-    # Add subscription check back if needed
-    bot.is_running = not bot.is_running
-    if bot.is_running:
-        bot.updated_at = None
-    
-    db.commit()
-    return {"is_running": bot.is_running}
+    if not bot:
+        raise HTTPException(status_code=404, detail="Bot not found")
 
-@router.post("/{bot_id}/toggle")
-async def toggle_bot(bot_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    bot = db.query(BotInstance).filter(BotInstance.id == bot_id, BotInstance.user_id == current_user.id).first()
-    if not bot: raise HTTPException(status_code=404, detail="Bot not found")
-    
-    if not bot.is_running and not current_user.is_subscription_active:
+    if not bot.is_running and not has_service_access(current_user):
         raise HTTPException(status_code=402, detail="Subscription inactive")
 
     bot.is_running = not bot.is_running
-    
+
     if bot.is_running:
         bot.updated_at = None
-    
+
     db.commit()
     return {"is_running": bot.is_running}
 
@@ -323,14 +276,21 @@ async def panic_close_all(db: Session = Depends(get_db), current_user: User = De
     
 
 @router.post("/{bot_id}/reset-pnl")
-def reset_bot_pnl(bot_id: int, db: Session = Depends(get_db)):
-    bot = db.query(BotInstance).filter(BotInstance.id == bot_id).first()
+def reset_bot_pnl(
+    bot_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    bot = db.query(BotInstance).filter(
+        BotInstance.id == bot_id,
+        BotInstance.user_id == current_user.id,
+    ).first()
     if not bot:
         raise HTTPException(status_code=404, detail="Bot not found")
-    
+
     bot.daily_pnl = 0.0
     db.commit()
-    
+
     return {"message": f"Daily PnL for Bot {bot_id} has been reset to $0.00"}
 
 

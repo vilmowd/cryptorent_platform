@@ -1,9 +1,9 @@
-/* --- TERMINAL LEGAL INTERFACE --- */
+/* Legal pages — light theme */
 
 .legal-container {
-  background-color: #020617; /* Deep midnight blue */
-  color: #94a3b8;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  background-color: #f8fafc;
+  color: #475569;
+  font-family: 'Inter', system-ui, sans-serif;
   min-height: 100vh;
   padding: 40px 20px;
   line-height: 1.6;
@@ -12,36 +12,35 @@
 }
 
 .legal-header {
-  border-bottom: 2px solid #1e293b;
+  border-bottom: 2px solid #e2e8f0;
   padding-bottom: 20px;
   margin-bottom: 30px;
 }
 
 .legal-header h2 {
-  color: #f8fafc;
+  color: #0f172a;
   margin: 0;
   font-size: 1.5rem;
-  letter-spacing: 2px;
+  letter-spacing: 0.02em;
 }
 
 .legal-header p {
   font-size: 0.75rem;
-  color: #475569;
+  color: #64748b;
   margin-top: 5px;
 }
 
-/* --- SECTION BLOCKS --- */
-
 .legal-section {
-  background: rgba(30, 41, 59, 0.3);
-  border: 1px solid #1e293b;
-  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   padding: 20px;
   margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
 }
 
 .legal-section h3 {
-  color: #3b82f6; /* Command Blue */
+  color: #2563eb;
   font-size: 0.9rem;
   margin-top: 0;
   margin-bottom: 12px;
@@ -62,37 +61,33 @@
 .legal-section li {
   font-size: 0.8rem;
   margin-bottom: 8px;
-  color: #cbd5e1;
+  color: #334155;
 }
 
-/* --- WARNING STYLES (For Risk/Refunds) --- */
-
 .alert-border {
-  border-left: 4px solid #ef4444 !important; /* Safety Red */
-  background: rgba(239, 68, 68, 0.05) !important;
+  border-left: 4px solid #ef4444 !important;
+  background: rgba(239, 68, 68, 0.06) !important;
 }
 
 .alert-border h3 {
-  color: #ef4444;
+  color: #dc2626;
 }
-
-/* --- FOOTER & BUTTONS --- */
 
 .legal-footer {
   margin-top: 40px;
   padding-top: 20px;
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid #e2e8f0;
   text-align: center;
   font-size: 0.7rem;
-  color: #475569;
+  color: #64748b;
 }
 
-.btn-logout {
-  background: transparent;
-  border: 1px solid #334155;
+.legal-container .btn-logout {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   color: #64748b;
   padding: 8px 15px;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 0.7rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -100,18 +95,17 @@
   text-transform: uppercase;
 }
 
-.btn-logout:hover {
-  background: #1e293b;
-  color: #f8fafc;
-  border-color: #3b82f6;
+.legal-container .btn-logout:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #2563eb;
 }
 
-/* Scrollbar for legal text */
 .legal-container::-webkit-scrollbar {
   width: 6px;
 }
 
 .legal-container::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #cbd5e1;
   border-radius: 10px;
 }

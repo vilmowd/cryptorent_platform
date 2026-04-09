@@ -20,8 +20,11 @@ class User(Base):
     unpaid_fees = Column(Float, default=0.0) 
     total_paid_to_platform = Column(Float, default=0.0)
 
-    stripe_customer_id = Column(String, nullable=True)
-    stripe_subscription_item_id = Column(String, nullable=True) # The 'si_xxx' ID
+    # PayPal Billing Subscriptions API subscription id (e.g. I-xxxxxxxx)
+    paypal_subscription_id = Column(String, nullable=True)
+
+    # Full platform access without billing (synced from ADMIN_EMAIL / ADMIN_PASSWORD in .env)
+    is_admin = Column(Boolean, default=False)
     
     # --- Relationships ---
     # FIX: Ensure "BotInstance" matches the class name in bot.py

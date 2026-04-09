@@ -1,36 +1,36 @@
-/* Container */
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
-/* Individual Cards */
 .summary-card {
-  background: #0f172a; /* Slate 900 */
-  border: 1px solid #1e293b; /* Slate 800 */
-  padding: 16px;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
   border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
 }
 
 .summary-label {
-  font-size: 10px;
-  color: #64748b; /* Slate 500 */
+  font-size: 0.65rem;
   text-transform: uppercase;
-  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #94a3b8);
   display: block;
-  margin-bottom: 4px;
-}
-
-.summary-value {
-  font-family: 'Roboto Mono', monospace;
-  font-size: 1.25rem;
+  margin-bottom: 6px;
   font-weight: 700;
 }
 
-/* Specific Colors */
-.text-profit { color: #4ade80; } /* Green */
-.text-loss { color: #f87171; }   /* Red */
-.text-neutral { color: #60a5fa; } /* Blue */
+.summary-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+}
 
+.value-positive { color: #15803d; }
+.value-negative { color: #dc2626; }
+.value-neutral { color: #2563eb; }
+.value-accent { color: #4f46e5; }
+.text-slate-200 { color: #475569; }

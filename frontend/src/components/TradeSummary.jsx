@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import './TradeSummary.css';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const TradeSummary = ({ botId }) => {
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
     const fetchSummary = async () => {
-      const res = await fetch(`http://localhost:8000/trades/${botId}/summary`, {
+      const res = await fetch(`${API_BASE_URL}/trades/${botId}/summary`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (res.ok) setStats(await res.json());

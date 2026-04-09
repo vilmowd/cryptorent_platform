@@ -53,9 +53,12 @@ export default function Dashboard() {
         const data = await response.json();
         setUser(data);
         
-        const isExpired = data.subscription_expires_at && new Date(data.subscription_expires_at) < new Date();
-        if (!data.is_subscription_active || isExpired) {
-          setBillingError("Subscription Inactive: Settle balance in Stripe Portal.");
+        const isExpired =
+          data.subscription_expires_at && new Date(data.subscription_expires_at) < new Date();
+        if (data.is_admin) {
+          setBillingError(null);
+        } else if (!data.is_subscription_active || isExpired) {
+          setBillingError('Subscription inactive. Use Billing to subscribe via PayPal.');
         } else {
           setBillingError(null);
         }
@@ -152,8 +155,8 @@ export default function Dashboard() {
   };
 
   const handleToggleAttempt = () => {
-    if (!user?.is_subscription_active) {
-      setBillingError("Action Blocked: Settle unpaid fees to enable trading.");
+    if (!user?.is_subscription_active && !user?.is_admin) {
+      setBillingError("Action blocked: an active subscription is required to run bots.");
       return false;
     }
     return true;
@@ -198,7 +201,7 @@ export default function Dashboard() {
           <div className="mb-8 p-4 bg-orange-500/10 border border-orange-500/50 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-orange-200 font-medium">{billingError}</p>
             <button onClick={handleManageBilling} className="bg-orange-600 hover:bg-orange-500 text-white px-6 py-2 rounded-xl font-bold transition-colors">
-              Manage in Stripe ↗
+              Open billing ↗
             </button>
           </div>
         )}
@@ -223,9 +226,9 @@ export default function Dashboard() {
             </button>
             <div className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-2xl flex items-center gap-4">
               <div className="text-right">
-                <p className="text-[10px] text-slate-500 uppercase font-bold">Stripe Status</p>
+                <p className="text-[10px] text-slate-500 uppercase font-bold">Billing</p>
                 <p className={user?.is_subscription_active ? "text-green-400 text-sm" : "text-orange-400 text-sm"}>
-                  {user?.is_subscription_active ? "● Connected" : "● Action Required"}
+                  {user?.is_admin ? "● Admin" : user?.is_subscription_active ? "● Active" : "● Action required"}
                 </p>
               </div>
               <div className="h-8 w-[1px] bg-slate-800"></div>

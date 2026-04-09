@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from models.bot import BotInstance
 from models.user import User
-from app.api.auth import get_current_user # Updated import path for consistency
+from app.api.auth import get_current_user
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -33,9 +33,12 @@ async def get_my_dashboard(
         })
 
     # 3. Return data matching the frontend's new state variables
+    is_admin = bool(getattr(current_user, "is_admin", False))
+    sub_ok = bool(current_user.is_subscription_active) or is_admin
     return {
         "email": current_user.email,
-        "is_subscription_active": current_user.is_subscription_active,
+        "is_subscription_active": sub_ok,
+        "is_admin": is_admin,
         "unpaid_fees": round(float(current_user.unpaid_fees or 0), 2),
         "has_bots": len(bot_list) > 0,
         "bots": bot_list

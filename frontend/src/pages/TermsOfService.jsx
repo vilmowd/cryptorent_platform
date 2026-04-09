@@ -32,15 +32,30 @@ const LegalTerms = ({ onBack }) => {
         </p>
       </div>
 
-      {/* --- SECTION 2: THE DISCLAIMER --- */}
+      {/* --- SECTION 2: THE DISCLAIMER & TRADING RISK --- */}
       <div className="legal-section alert-border">
-        <h3>2. NO FINANCIAL OR LEGAL ADVICE</h3>
+        <h3>2. NO FINANCIAL OR LEGAL ADVICE &amp; TRADING RISK</h3>
         <p>
           The Platform is a <strong>technical software provider only</strong>. We do not provide 
           investment, financial, tax, or legal advice. BT OPS provides tools for automated execution; 
-          all trading parameters (EMA, RSI, Stop-Loss) are configured by the User. 
-          <strong> Trading involves significant risk of loss.</strong> Past performance is not 
-          a guarantee of future results.
+          trading-related parameters and settings are chosen or adjusted by you.
+        </p>
+        <p>
+          <strong>No guarantee of results.</strong> BT OPS makes no representation or warranty that you will 
+          earn a profit, achieve net positive returns, or that you will make more money than you lose. 
+          Automated trading strategies and software <strong>cannot</strong> guarantee profitable outcomes. 
+          Actual results depend on market conditions, liquidity, volatility, exchange and network fees, 
+          slippage, execution timing, exchange rules and outages, and other factors beyond our control.
+        </p>
+        <p>
+          <strong>Informational displays.</strong> Performance figures, profit and loss estimates, indicators, 
+          price targets, limits, or safety or status messages shown in the Platform are informational only. 
+          They do not promise any particular trading outcome and may not reflect every detail of live 
+          execution on your exchange.
+        </p>
+        <p>
+          <strong>Trading involves substantial risk of loss.</strong> Past performance is not a guarantee 
+          of future results. You should only trade with capital you can afford to lose.
         </p>
       </div>
 
@@ -52,7 +67,7 @@ const LegalTerms = ({ onBack }) => {
           <li><strong>User Credentials:</strong> Your email address for account identification and communications.</li>
           <li><strong>API Credentials:</strong> Your exchange API keys and Secrets. These are encrypted at rest and used solely to execute trades on your behalf.</li>
           <li><strong>Usage Data:</strong> We collect site traffic data, IP addresses, and interaction logs to monitor system health and improve performance.</li>
-          <li><strong>Payment Data:</strong> Payment processing is handled by <strong>Paddle</strong>. We do not store your full credit card details on our local servers.</li>
+          <li><strong>Payment Data:</strong> Payment processing is handled by <strong>PayPal</strong>. We do not store your full card or bank details on our local servers.</li>
         </ul>
       </div>
 
@@ -61,7 +76,7 @@ const LegalTerms = ({ onBack }) => {
         <h3>4. SUBSCRIPTIONS & PAYMENTS</h3>
         <p>
           Access to BT OPS is provided on a subscription basis. By subscribing, you authorize 
-          recurring monthly charges via our Merchant of Record, <strong>Paddle</strong>. Fees are generally non-refundable. We reserve the right 
+          recurring monthly charges through <strong>PayPal</strong> according to the plan you select. Fees are generally non-refundable. We reserve the right 
           to suspend bot execution for accounts with unpaid balances.
         </p>
       </div>

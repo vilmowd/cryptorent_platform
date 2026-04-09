@@ -47,6 +47,19 @@ def create_access_token(data: dict):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+
+def has_service_access(user: User) -> bool:
+    """Trading / dashboard features: subscribers or env-configured admin."""
+    if getattr(user, "is_admin", False):
+        return True
+    return bool(user.is_subscription_active)
+
+
+def reserved_admin_email() -> Optional[str]:
+    e = os.getenv("ADMIN_EMAIL", "").strip()
+    return e.lower() if e else None
+
+
 # --- DEPENDENCY ---
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
@@ -71,17 +84,22 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 
 @router.post("/register")
 async def register(auth_data: UserAuth, db: Session = Depends(get_db)):
+    reserved = reserved_admin_email()
+    if reserved and auth_data.email.strip().lower() == reserved:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This email is reserved.",
+        )
+
     try:
-        # Check if user exists
         user_exists = db.query(User).filter(User.email == auth_data.email).first()
         if user_exists:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, 
-                detail="This email is already registered."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This email is already registered.",
             )
 
     except OperationalError:
-        # DB FIX: If columns are missing, recreate tables
         print("Database schema mismatch. Syncing...")
         Base.metadata.create_all(bind=engine)
         db.rollback()
@@ -91,27 +109,30 @@ async def register(auth_data: UserAuth, db: Session = Depends(get_db)):
         new_user = User(
             email=auth_data.email,
             hashed_password=hash_password(auth_data.password),
-            is_subscription_active=False
+            is_subscription_active=False,
+            is_admin=False,
         )
-        
+
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
         return {"message": "User created successfully!"}
 
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         print(f"Registration Error: {e}")
         raise HTTPException(
             status_code=500,
-            detail="Could not complete registration. Ensure database is updated."
+            detail="Could not complete registration. Ensure database is updated.",
         )
 
 @router.post("/login")
 async def login(auth_data: UserAuth, db: Session = Depends(get_db)):
     try:
         user = db.query(User).filter(User.email == auth_data.email).first()
-        
+
         if not user or not verify_password(auth_data.password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -121,18 +142,23 @@ async def login(auth_data: UserAuth, db: Session = Depends(get_db)):
         access_token = create_access_token(data={"sub": user.email})
         return {"access_token": access_token, "token_type": "bearer"}
 
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Login Error: {e}")
-        raise HTTPException(status_code=500, detail="Account Not Found")
+        raise HTTPException(status_code=500, detail="Login failed.") from e
     
 @router.get("/me")
 async def get_me(current_user: User = Depends(get_current_user)):
+    is_admin = bool(getattr(current_user, "is_admin", False))
+    sub_ok = bool(current_user.is_subscription_active) or is_admin
     return {
         "email": current_user.email,
-        "is_subscription_active": current_user.is_subscription_active,
+        "is_subscription_active": sub_ok,
+        "is_admin": is_admin,
         "unpaid_fees": current_user.unpaid_fees,
         "billing_model": current_user.billing_model,
         "subscription_expires_at": current_user.subscription_expires_at,
-        "stripe_customer_id": current_user.stripe_customer_id
+        "paypal_subscription_id": current_user.paypal_subscription_id,
     }
 

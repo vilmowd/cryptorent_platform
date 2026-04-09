@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './SiteInfo.css';
 
 const SiteInfo = ({ onNavigate }) => {
   const [settings, setSettings] = useState({ 
@@ -31,24 +32,25 @@ const SiteInfo = ({ onNavigate }) => {
   return (
     <footer style={{ 
       marginTop: '30px', padding: isMobile ? '20px 15px 100px 15px' : '12px 20px', 
-      borderTop: '1px solid #1e293b', background: '#020617', color: '#64748b', fontSize: '0.75rem' 
+      borderTop: '1px solid #e2e8f0', background: '#ffffff', color: '#64748b', fontSize: '0.75rem' 
     }}>
       
       {/* INTERNAL SYSTEM MODALS */}
       {activeModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          backgroundColor: 'rgba(2, 6, 23, 0.95)', backdropFilter: 'blur(8px)',
+          backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(8px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000
         }} onClick={() => setActiveModal(null)}>
           <div style={{
-            background: '#0f172a', border: '1px solid #1e293b', padding: isMobile ? '20px' : '30px',
-            borderRadius: '20px', maxWidth: '650px', width: '90%', position: 'relative'
+            background: '#ffffff', border: '1px solid #e2e8f0', padding: isMobile ? '20px' : '30px',
+            borderRadius: '20px', maxWidth: '650px', width: '90%', position: 'relative',
+            boxShadow: '0 20px 40px rgba(15, 23, 42, 0.12)'
           }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ color: 'white', marginTop: 0, fontSize: isMobile ? '1.2rem' : '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
+            <h2 style={{ color: '#0f172a', marginTop: 0, fontSize: isMobile ? '1.2rem' : '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>
               {activeModal === 'risk' ? 'RISK DISCLOSURE' : 'OPERATIONS MANUAL'}
             </h2>
-            <div style={{ color: '#94a3b8', lineHeight: '1.6', maxHeight: '65vh', overflowY: 'auto', fontSize: '0.75rem', paddingRight: '10px', marginTop: '15px' }}>
+            <div style={{ color: '#475569', lineHeight: '1.6', maxHeight: '65vh', overflowY: 'auto', fontSize: '0.75rem', paddingRight: '10px', marginTop: '15px' }}>
               
               {activeModal === 'risk' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -62,15 +64,15 @@ const SiteInfo = ({ onNavigate }) => {
 
               {activeModal === 'info' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  <p style={{ fontWeight: 'bold', color: 'white', fontSize: '1rem' }}>SYSTEM OPERATION PROTOCOL</p>
+                  <p style={{ fontWeight: 'bold', color: '#0f172a', fontSize: '1rem' }}>SYSTEM OPERATION PROTOCOL</p>
                   
-                  <div style={{ padding: '12px', border: '1px solid #3b82f6', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.05)' }}>
+                  <div style={{ padding: '12px', border: '1px solid #93c5fd', borderRadius: '8px', background: '#eff6ff' }}>
                     <p style={{ color: '#3b82f6', fontWeight: 'bold', fontSize: '0.8rem', margin: '0 0 5px 0' }}>🔌 API CONFIGURATION</p>
                     <p style={{ fontSize: '0.7rem', margin: 0 }}>Enable "Spot Trading" and "Reading" permissions ONLY. <strong>Strictly disable "Withdrawals"</strong> for all API keys linked to this dashboard.</p>
                   </div>
 
-                  <div style={{ padding: '12px', border: '1px solid #1e293b', borderRadius: '8px' }}>
-                    <p style={{ color: '#e2e8f0', fontWeight: 'bold', fontSize: '0.8rem', margin: '0 0 5px 0' }}>🤖 BOT DEPLOYMENT</p>
+                  <div style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' }}>
+                    <p style={{ color: '#0f172a', fontWeight: 'bold', fontSize: '0.8rem', margin: '0 0 5px 0' }}>🤖 BOT DEPLOYMENT</p>
                     <p style={{ fontSize: '0.7rem', margin: 0 }}>Ensure your exchange account has sufficient USDT/Base currency before activating a bot instance. Bots will automatically pause if balance is insufficient for the minimum trade size.</p>
                   </div>
 
@@ -92,11 +94,11 @@ const SiteInfo = ({ onNavigate }) => {
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '20px' : '0' }}>
         <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '10px' : '20px', alignItems: isMobile ? 'flex-start' : 'center' }}>
           <div>
-            <b style={{ color: '#94a3b8', display: 'block', fontSize: '0.75rem' }}>BT OPS</b>
+            <b style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>BT OPS</b>
             <span style={{ fontSize: '0.65rem' }}>v2.4.0-PRO</span>
           </div>
           
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', borderLeft: isMobile ? 'none' : '1px solid #1e293b', paddingLeft: isMobile ? '0' : '20px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', borderLeft: isMobile ? 'none' : '1px solid #e2e8f0', paddingLeft: isMobile ? '0' : '20px' }}>
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onNavigate('/terms')}>Terms</span>
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onNavigate('/policy')}>Privacy</span>
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onNavigate('/refund')}>Refunds</span>
@@ -107,7 +109,7 @@ const SiteInfo = ({ onNavigate }) => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', alignSelf: isMobile ? 'flex-end' : 'auto' }}>
-          <div style={{ textAlign: 'right', borderRight: '2px solid #1e293b', paddingRight: '15px' }}>
+          <div style={{ textAlign: 'right', borderRight: '2px solid #e2e8f0', paddingRight: '15px' }}>
             <p style={{ margin: 0, fontSize: '0.55rem', color: '#475569', fontWeight: 'bold' }}>ACCESS OPS</p>
             <p style={{ margin: 0, fontSize: '0.65rem', color: hoverLabel === "SYSTEM READY" ? '#64748b' : '#22c55e' }}>{hoverLabel}</p>
           </div>
@@ -121,7 +123,7 @@ const SiteInfo = ({ onNavigate }) => {
       </div>
       
       <div style={{ marginTop: '15px', fontSize: '0.6rem', color: '#475569', textAlign: 'center' }}>
-        © 2026 CryptoCommandCenter.net | Managed via Paddle Secure Infrastructure
+        © 2026 CryptoCommandCenter.net | Payments processed securely via PayPal
       </div>
     </footer>
   );
@@ -139,12 +141,12 @@ const RoundBtn = ({ active, onClick, onHover }) => (
       minWidth: '14px', 
       minHeight: '14px', 
       borderRadius: '50%', 
-      border: '1px solid #334155', 
+      border: '1px solid #cbd5e1', 
       cursor: 'pointer', 
       padding: 0, 
       display: 'block', 
       transition: 'all 0.2s ease',
-      backgroundColor: active ? '#3b82f6' : 'transparent'
+      backgroundColor: active ? '#2563eb' : 'transparent'
     }}
   />
 );

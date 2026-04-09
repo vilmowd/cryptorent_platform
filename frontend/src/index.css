@@ -1,12 +1,19 @@
-/* 1. Global Reset & Variables */
+/* Global design tokens — light theme */
 :root {
-  --bg-dark: #020617;
-  --bg-card: #0f172a;
-  --border-color: #1e293b;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --accent-blue: #4f46e5;
-  --accent-green: #22c55e;
+  --bg-page: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-muted: #f8fafc;
+  --bg-subtle: #e2e8f0;
+  --bg-nav: rgba(255, 255, 255, 0.88);
+  --border-color: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --accent-blue: #2563eb;
+  --accent-green: #16a34a;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
 }
 
 * {
@@ -16,24 +23,25 @@
 }
 
 body {
-  background-color: var(--bg-dark);
+  background-color: var(--bg-page);
   color: var(--text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
 }
 
-/* 2. Navigation Bar */
+/* Navigation bar */
 .navbar {
   width: 100%;
   height: 70px;
-  background-color: rgba(15, 23, 42, 0.9);
+  background-color: var(--bg-nav);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   position: sticky;
   top: 0;
   z-index: 100;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-sm);
 }
 
 .nav-content {
@@ -62,16 +70,17 @@ body {
   justify-content: center;
   font-weight: 800;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 
 .brand-name {
   font-size: 1.4rem;
   font-weight: 700;
   letter-spacing: -0.5px;
+  color: var(--text-primary);
 }
 
-/* 3. Main Layout Grid */
+/* Main layout */
 .main-content {
   max-width: 1200px;
   margin: 0 auto;
@@ -86,9 +95,10 @@ body {
   font-size: 2.5rem;
   font-weight: 800;
   margin-bottom: 10px;
-  background: linear-gradient(to right, #ffffff, #94a3b8);
+  background: linear-gradient(to right, #0f172a, #475569);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .subtitle {
@@ -98,11 +108,11 @@ body {
 
 .grid-layout {
   display: grid;
-  grid-template-columns: 350px 1fr; /* Sidebar fixed, content grows */
+  grid-template-columns: 350px 1fr;
   gap: 30px;
 }
 
-/* 4. Cards & Sections */
+/* Cards */
 .card-section {
   margin-bottom: 40px;
 }
@@ -118,22 +128,24 @@ body {
 }
 
 .card {
-  background: var(--bg-card);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: 16px;
   padding: 24px;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: var(--shadow-sm);
 }
 
 .card:hover {
-  border-color: #334155;
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
 }
 
-/* 5. Buttons & UI Elements */
+/* Buttons */
 .btn-logout {
-  background: #1e293b;
-  color: white;
-  border: 1px solid #334155;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
   padding: 8px 18px;
   border-radius: 8px;
   font-weight: 600;
@@ -142,8 +154,9 @@ body {
 }
 
 .btn-logout:hover {
-  background: #ef4444; /* Bright Red */
-  border-color: #ef4444;
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
 }
 
 .user-status {
@@ -154,7 +167,7 @@ body {
 .status-label {
   font-size: 10px;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--text-muted);
   display: block;
 }
 
@@ -164,40 +177,40 @@ body {
   font-weight: 600;
 }
 
-/* 6. Footer */
+/* Footer */
 .footer {
   margin-top: 60px;
   padding: 40px 0;
   border-top: 1px solid var(--border-color);
   text-align: center;
-  color: #475569;
+  color: var(--text-secondary);
   font-size: 0.9rem;
 }
 
-/* 7. Responsive Fix */
 @media (max-width: 900px) {
   .grid-layout {
     grid-template-columns: 1fr;
   }
 }
 
-/* Login Page Styles */
+/* Login */
 .login-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  background-color: var(--bg-dark);
+  min-height: 60vh;
+  background-color: transparent;
 }
 
 .login-card {
-  background: var(--bg-card);
+  background: var(--bg-surface);
   padding: 40px;
   border-radius: 20px;
   border: 1px solid var(--border-color);
   width: 100%;
   max-width: 400px;
   text-align: center;
+  box-shadow: var(--shadow-md);
 }
 
 .input-group {
@@ -208,11 +221,21 @@ body {
 .input-field {
   width: 100%;
   padding: 12px;
-  background: #1e293b;
-  border: 1px solid #334155;
+  background: var(--bg-muted);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  color: white;
+  color: var(--text-primary);
   margin-top: 5px;
+}
+
+.input-field::placeholder {
+  color: var(--text-muted);
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 .btn-primary {
@@ -224,4 +247,8 @@ body {
   border-radius: 8px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
 }

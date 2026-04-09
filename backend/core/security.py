@@ -1,9 +1,11 @@
 import os
 import logging
+from pathlib import Path
+
 from cryptography.fernet import Fernet, InvalidToken
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 # Setup logging to catch encryption errors
 logger = logging.getLogger("security")

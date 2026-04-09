@@ -11,6 +11,14 @@ services:
     environment:
       - DATABASE_URL=sqlite:///./cryptorent.db
       - JWT_SECRET=your_super_secret_change_this
+      - ADMIN_EMAIL=
+      - ADMIN_PASSWORD=
+      - FRONTEND_URL=http://localhost:3000
+      - PAYPAL_MODE=sandbox
+      - PAYPAL_CLIENT_ID=
+      - PAYPAL_CLIENT_SECRET=
+      - PAYPAL_PLAN_ID=
+      - PAYPAL_WEBHOOK_ID=
     restart: always
 
   # 2. The React Frontend

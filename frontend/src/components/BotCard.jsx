@@ -238,7 +238,7 @@ const BotCard = ({ botId, onNavigate, onBotDeleted, onToggleAttempt }) => {
 
       <div className="stats-list">
         {bot.is_running && (
-          <button className="analytics-trigger-btn" onClick={(e) => { e.stopPropagation(); onNavigate('analytics', botId); }}>
+          <button className="analytics-trigger-btn" onClick={(e) => { e.stopPropagation(); onNavigate('/analytics', botId); }}>
             <span className="icon">⚡</span> <span>OPEN ANALYTICS TERMINAL</span> <span className="arrow">→</span>
           </button>
         )}

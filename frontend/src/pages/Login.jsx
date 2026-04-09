@@ -61,14 +61,14 @@ const Login = ({ onLoginSuccess }) => {
       display: 'flex', 
       flexDirection: 'column', 
       minHeight: '100vh', 
-      backgroundColor: '#020617' 
+      backgroundColor: '#f1f5f9' 
     }}>
       {/* Centered Login Card */}
       <div className="login-container" style={{ flex: '1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div className="login-card">
           <div className="text-center">
             <div className="logo-box" style={{ margin: '0 auto 20px auto' }}>CR</div>
-            <h2 className="title" style={{ fontSize: '1.8rem', color: '#1e293b' }}>
+            <h2 className="title" style={{ fontSize: '1.8rem', color: '#0f172a' }}>
               {isRegister ? 'Create Account' : 'Welcome Back'}
             </h2>
             <p className="subtitle" style={{ marginBottom: '30px' }}>
@@ -148,6 +148,29 @@ const Login = ({ onLoginSuccess }) => {
               </button>
             </p>
           </div>
+
+          {!isRegister && (
+            <details
+              style={{
+                marginTop: '24px',
+                padding: '14px 16px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(15, 23, 42, 0.04)',
+                border: '1px solid #e2e8f0',
+                textAlign: 'left',
+              }}
+            >
+              <summary style={{ cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#334155' }}>
+                Administrator sign-in
+              </summary>
+              <p style={{ margin: '12px 0 0 0', fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
+                Platform administrators use the <strong>same</strong> email and password fields above. Credentials are
+                defined in the server environment (<code style={{ fontSize: '0.7rem' }}>ADMIN_EMAIL</code> /{' '}
+                <code style={{ fontSize: '0.7rem' }}>ADMIN_PASSWORD</code>). That account cannot be created through
+                public registration.
+              </p>
+            </details>
+          )}
         </div>
       </div>
 
