@@ -5,7 +5,7 @@ const API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:8000').
 const APK_HREF = `${API_BASE_URL}/downloads/cryptocommandcenter.apk`;
 
 /**
- * Prominent Android APK download — uses /app-icon.svg from public/ as the app tile.
+ * Prominent Android APK download — uses /app-icon.png (same artwork as the Android app icon).
  */
 export default function AndroidDownloadButton({ variant = 'footer' }) {
   const isCard = variant === 'card';
@@ -41,7 +41,7 @@ export default function AndroidDownloadButton({ variant = 'footer' }) {
       }}
     >
       <img
-        src={`${process.env.PUBLIC_URL || ''}/app-icon.svg`}
+        src={`${process.env.PUBLIC_URL || ''}/app-icon.png`}
         alt="CryptoCommandCenter app icon"
         width={isCard ? 52 : 44}
         height={isCard ? 52 : 44}
