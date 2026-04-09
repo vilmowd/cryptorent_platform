@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './SiteInfo.css';
 
+const API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const ANDROID_APK_URL = `${API_BASE_URL}/downloads/cryptocommandcenter.apk`;
+
 const SiteInfo = ({ onNavigate }) => {
   const [settings, setSettings] = useState({ 
     highContrast: false, 
@@ -102,6 +105,17 @@ const SiteInfo = ({ onNavigate }) => {
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onNavigate('/terms')}>Terms</span>
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onNavigate('/policy')}>Privacy</span>
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onNavigate('/refund')}>Refunds</span>
+
+            <a
+              href={ANDROID_APK_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              download="cryptocommandcenter.apk"
+              style={{ color: '#0f172a', textDecoration: 'underline', fontWeight: 600 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              Android app (APK)
+            </a>
             
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setActiveModal('risk')}>Risk Disclosure</span>
             <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setActiveModal('info')}>Operations</span>
