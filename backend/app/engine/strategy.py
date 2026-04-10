@@ -108,6 +108,30 @@ class StrategyManager:
                 
             price = float(data['close'])
             self.bot.last_known_price = price
+
+            # Manual override from dashboard (POST /bots/{id}/force-trade)
+            fa = (getattr(self.bot, "force_action", None) or "").strip().upper()
+            if fa == "SELL" and self.bot.in_position:
+                pnl = (price - self.bot.buy_price) * self.bot.position_size
+                self.record_execution("FORCE EXIT", "SELL", price, self.bot.position_size, pnl=pnl)
+                self.bot.force_action = None
+                self.db.commit()
+                return
+            if fa == "BUY" and not self.bot.in_position:
+                requested_usd = float(getattr(self.bot, "trade_amount_usd", 100.0))
+                can_afford, _bal = self.check_available_funds(requested_usd)
+                if can_afford:
+                    qty = requested_usd / price
+                    size = float(self.exchange.amount_to_precision(self.bot.symbol, qty))
+                    self.record_execution("FORCE ENTRY", "BUY", price, size)
+                    self.bot.force_action = None
+                # If funds are low, leave force_action set so the next tick can retry.
+                self.db.commit()
+                return
+            if fa:
+                # Stale or impossible combo (e.g. BUY while already long) — clear flag
+                self.bot.force_action = None
+                self.db.commit()
             
             if self.bot.in_position:
                 # Target at 13% to ensure a clean 10%+ net profit after fees

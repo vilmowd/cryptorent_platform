@@ -65,6 +65,54 @@ const BotAnalytics = ({ botId, onBack }) => {
     return () => clearInterval(interval);
   }, [fetchData]);
 
+  const handleForceTrade = useCallback(async () => {
+    if (!botId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/bots/${botId}/force-trade`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        window.alert(body.detail || 'Could not send force trade signal.');
+        return;
+      }
+      fetchData();
+    } catch (e) {
+      console.error(e);
+      window.alert('Network error while sending force trade.');
+    }
+  }, [botId, API_BASE_URL, fetchData]);
+
+  const handleResetPnL = useCallback(
+    async (id) => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE_URL}/bots/${id}/reset-pnl`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          window.alert(body.detail || 'Could not reset PnL.');
+          return;
+        }
+        fetchData();
+      } catch (e) {
+        console.error(e);
+        window.alert('Network error while resetting PnL.');
+      }
+    },
+    [API_BASE_URL, fetchData],
+  );
+
   if (error) return <div className="status-alert error">{error}</div>;
   if (!data) return <div className="loading-text">Accessing Secure Ledger...</div>;
 
@@ -92,10 +140,12 @@ const BotAnalytics = ({ botId, onBack }) => {
         </div>
       </div>
 
-      <StrategyInfoModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        data={data} 
+      <StrategyInfoModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        data={data}
+        onForceTrade={handleForceTrade}
+        onResetPnL={handleResetPnL}
       />
 
       <div className="brain-grid">

@@ -5,8 +5,9 @@ const StrategyInfoModal = ({ isOpen, onClose, data, onForceTrade, onResetPnL }) 
 
   if (!isOpen) return null;
 
-  // Logic variables for Safety Gates
-  const isBelowMaxLoss = data.daily_pnl_value > -Math.abs(data.max_daily_loss || 100);
+  // Logic variables for Safety Gates (API sends daily_pnl_raw from /stats)
+  const dailyPnlNum = data.daily_pnl_raw ?? data.daily_pnl_value ?? 0;
+  const isBelowMaxLoss = dailyPnlNum > -Math.abs(data.max_daily_loss || 100);
   const isWithinPriceRange = (!data.min_trade_price || data.current_price >= data.min_trade_price) &&
                                (!data.max_trade_price || data.current_price <= data.max_trade_price);
 
@@ -53,7 +54,7 @@ const StrategyInfoModal = ({ isOpen, onClose, data, onForceTrade, onResetPnL }) 
                
                <div className="inv-row border-t border-slate-700 mt-2 pt-2">
                  <span>Today's Performance:</span>
-                 <strong className={data.daily_pnl_value >= 0 ? 'text-buy' : 'text-red-400'}>
+                 <strong className={dailyPnlNum >= 0 ? 'text-buy' : 'text-red-400'}>
                    {data.daily_pnl}
                  </strong>
                </div>
@@ -147,7 +148,13 @@ const StrategyInfoModal = ({ isOpen, onClose, data, onForceTrade, onResetPnL }) 
                   Bypassing indicators to execute {data.in_position ? 'SELL' : 'BUY'} now.
                 </p>
                 <div className="btn-group">
-                  <button className="confirm-yes" onClick={() => { onForceTrade(); setConfirmMode(false); }}>
+                  <button
+                    className="confirm-yes"
+                    onClick={() => {
+                      onForceTrade?.();
+                      setConfirmMode(false);
+                    }}
+                  >
                     CONFIRM {data.in_position ? 'SELL' : 'BUY'}
                   </button>
                   <button className="confirm-no" onClick={() => setConfirmMode(false)}>CANCEL</button>
@@ -161,8 +168,8 @@ const StrategyInfoModal = ({ isOpen, onClose, data, onForceTrade, onResetPnL }) 
             <button 
               className="emergency-reset-btn"
               onClick={() => {
-                if(window.confirm("Manual Reset will clear today's PnL record. Continue?")) {
-                  onResetPnL(data.id);
+                if (window.confirm("Manual Reset will clear today's PnL record. Continue?")) {
+                  onResetPnL?.(data.id);
                 }
               }}
             >
