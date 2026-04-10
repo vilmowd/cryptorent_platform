@@ -164,10 +164,7 @@ const Login = ({ onLoginSuccess }) => {
                 Administrator sign-in
               </summary>
               <p style={{ margin: '12px 0 0 0', fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
-                Platform administrators use the <strong>same</strong> email and password fields above. Credentials are
-                defined in the server environment (<code style={{ fontSize: '0.7rem' }}>ADMIN_EMAIL</code> /{' '}
-                <code style={{ fontSize: '0.7rem' }}>ADMIN_PASSWORD</code>). That account cannot be created through
-                public registration.
+                Platform administrators use the <strong>same</strong> email and password fields above.
               </p>
             </details>
           )}
