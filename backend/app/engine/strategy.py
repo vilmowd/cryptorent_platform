@@ -134,16 +134,19 @@ class StrategyManager:
                 self.db.commit()
             
             if self.bot.in_position:
-                # Target at 13% to ensure a clean 10%+ net profit after fees
                 buy_price = self.bot.buy_price
-                target_price = buy_price * 1.13
-                stop_price = buy_price * 0.97 # 3% safety net
-                
+                tp_mult = float(getattr(self.bot, "take_profit", None) or 1.05)
+                sl_mult = float(getattr(self.bot, "stop_loss", None) or 0.98)
+                target_price = buy_price * tp_mult
+                stop_price = buy_price * sl_mult
+
                 sell, reason = False, ""
                 if price >= target_price:
-                    sell, reason = True, "TAKE PROFIT (13%)"
+                    tp_pct = (tp_mult - 1.0) * 100.0
+                    sell, reason = True, f"TAKE PROFIT ({tp_pct:.1f}%)"
                 elif price <= stop_price:
-                    sell, reason = True, "STOP LOSS (3%)"
+                    sl_pct = (1.0 - sl_mult) * 100.0
+                    sell, reason = True, f"STOP LOSS ({sl_pct:.1f}%)"
                 
                 if sell:
                     pnl = (price - buy_price) * self.bot.position_size
